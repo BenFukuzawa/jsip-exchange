@@ -74,3 +74,20 @@ let%expect_test "negative to_string_dollar" =
   print_endline (Price.to_string_dollar (Price.of_int_cents (-150)));
   [%expect {| -$1.50 |}]
 ;;
+
+(* Appended tests for Order Book find_match function and the best price
+   helper (nested within best bid offer function) *)
+let%expect_test "Order book: find_match test" =
+  [%test_result: bool]
+    (Price.is_more_aggressive
+       Buy
+       ~price:(Price.of_int_cents 5)
+       ~than:(Price.of_int_cents 5))
+    ~expect:false;
+  [%test_result: bool]
+    (Price.is_more_aggressive
+       Sell
+       ~price:(Price.of_int_cents 10)
+       ~than:(Price.of_int_cents 5))
+    ~expect:false
+;;

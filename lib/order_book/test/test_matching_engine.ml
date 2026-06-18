@@ -106,8 +106,8 @@ let%expect_test "aggressor sweeps multiple resting orders" =
     ACCEPTED id=1 AAPL SELL 50@$150.00 DAY
     ACCEPTED id=2 AAPL SELL 80@$150.00 DAY
     ACCEPTED id=3 AAPL BUY 100@$150.00 DAY
-    FILL fill_id=1 AAPL $150.00 x80 aggressor=3(Alice) BUY resting=2(Charlie)
-    FILL fill_id=2 AAPL $150.00 x20 aggressor=3(Alice) BUY resting=1(Bob)
+    FILL fill_id=1 AAPL $150.00 x50 aggressor=3(Alice) BUY resting=1(Bob)
+    FILL fill_id=2 AAPL $150.00 x50 aggressor=3(Alice) BUY resting=2(Charlie)
     |}]
 ;;
 
@@ -243,13 +243,13 @@ let%expect_test "price priority: naive impl matches first-found, not best" =
   submit_ t (Harness.sell ~price_cents:1005 ~participant:Harness.bob ());
   submit_ t (Harness.buy ~price_cents:1005 ());
   (* NOTE: The buyer pays $10.05 instead of $10.00 — $0.05/share of
-     unnecessary cost! *)
+     unnecessary cost! <- Fixed test *)
   [%expect
     {|
     ACCEPTED id=1 AAPL SELL 100@$10.00 DAY
     ACCEPTED id=2 AAPL SELL 100@$10.05 DAY
     ACCEPTED id=3 AAPL BUY 100@$10.05 DAY
-    FILL fill_id=1 AAPL $10.05 x100 aggressor=3(Alice) BUY resting=2(Bob)
+    FILL fill_id=1 AAPL $10.00 x100 aggressor=3(Alice) BUY resting=1(Charlie)
     |}]
 ;;
 

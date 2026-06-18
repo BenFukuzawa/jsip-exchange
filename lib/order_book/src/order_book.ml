@@ -62,14 +62,14 @@ let find t order_id =
   match find_in Buy with Some _ as result -> result | None -> find_in Sell
 ;;
 
-(* Compares orders a and b to see which one is better: First sort based on
-   higher price *)
+(* Compares orders order1 and order2 to see which one is better: First sort
+   based on higher price *)
 let compare_better_order ~order1 ~order2 side =
   let compare_val =
     Price.compare (Order.price order1) (Order.price order2)
   in
   if compare_val = 0
-  then Order_id.compare (Order.order_id order1) (Order.order_id order2)
+  then Order_id.compare (Order.order_id order2) (Order.order_id order1)
   else if Price.is_more_aggressive
             side
             ~price:(Order.price order1)
@@ -87,12 +87,15 @@ let find_match t incoming =
   let incoming_side = Order.side incoming in
   let opposite_side = Side.flip incoming_side in
   let resting_orders = side_list t opposite_side in
-  (* filter by orders that are viably aggressive first *)
-  (* use is_better function above to find the best-priced order *)
-  List.reduce resting_orders ~f:(fun p1 p2 ->
-    if compare_better_order ~order1:p1 ~order2:p2 opposite_side > 0
-    then p1
-    else p2)
+  let valid_orders_list =
+    List.filter resting_orders ~f:(fun p ->
+      Price.is_marketable
+        incoming_side
+        ~price:(Order.price incoming)
+        ~resting_price:(Order.price p))
+  in
+  List.max_elt valid_orders_list ~compare:(fun p1 p2 ->
+    compare_better_order ~order1:p1 ~order2:p2 opposite_side)
 ;;
 
 let orders_on_side t side = side_list t side
@@ -123,16 +126,10 @@ let best_bid_offer t : Bbo.t =
 ;;
 
 let snapshot_side t (side : Side.t) =
-  let compare =
-    match side with
-    | Buy -> Comparable.reverse Level.compare
-    | Sell -> Level.compare
-  in
   orders_on_side t side
-  |> List.sort ~compare:(fun a b ->
-    compare_better_order ~order1:a ~order2:b side)
+  |> List.sort ~compare:(fun p1 p2 ->
+    compare_better_order ~order1:p1 ~order2:p2 side)
   |> List.map ~f:Level.of_order
-  |> List.sort ~compare
 ;;
 
 let snapshot t =

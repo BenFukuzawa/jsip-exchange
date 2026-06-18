@@ -1,16 +1,7 @@
-open! Core
+(* open! Core open Jsip_types open Async_log_kernel.Ppx_log_syntax
 
-type verb =
-  | Buy
-  | Sell
-  | Book
-  | Subscribe
-[@@deriving string ~case_insensitive]
+   type verb = | Buy | Sell | Book | Subscribe
+   [@@deriving string ~case_insensitive]
 
-let to_string verb = verb
-let of_string verb = verb
-
-type t =
-  | Submit of Order.Request.t
-  | Book of Symbol.t
-  | Subscribe of Symbol.t
+   type t = | Submit of Order.Request.t | Book of Symbol.t | Subscribe of
+   Symbol.t [@@deriving sexp_of] *)

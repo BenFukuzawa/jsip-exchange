@@ -3,6 +3,12 @@ open! Async
 open Jsip_types
 open Jsip_order_book
 
+module Connection_state = struct
+  type t = { mutable session : Session.t option }
+
+  let participant t = Option.map t.session ~f:Session.participant
+end
+
 type t =
   { engine : Matching_engine.t
   ; dispatcher : Dispatcher.t
@@ -67,7 +73,8 @@ let start ~symbols ~port () =
   let%map tcp_server =
     Rpc.Connection.serve
       ~implementations
-      ~initial_connection_state:(fun _addr _conn -> ())
+      ~initial_connection_state:(fun _addr _conn ->
+        { Connection_state.session = None })
       ~where_to_listen:(Tcp.Where_to_listen.of_port port)
       ()
   in
@@ -81,5 +88,8 @@ let close t =
   Pipe.close t.request_writer;
   Tcp.Server.close t.tcp_server
 ;;
+
+(* let%bind () = Rpc.Connection.close t.dispatcher in let%bind () =
+   Rpc.Connection.close_finished; Deferred.unit *)
 
 let close_finished t = Tcp.Server.close_finished t.tcp_server

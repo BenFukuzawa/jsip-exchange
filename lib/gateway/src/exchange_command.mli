@@ -1,6 +1,5 @@
 open! Core
 open Jsip_types
-open Async_log_kernel.Ppx_log_syntax
 
 module Verb : sig
   type t =

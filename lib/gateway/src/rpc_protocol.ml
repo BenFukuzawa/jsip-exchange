@@ -39,3 +39,13 @@ let audit_log_rpc =
     ~bin_error:Error.bin_t
     ()
 ;;
+
+let login_rpc name =
+  let trimmed_name = String.strip name in
+  match trimmed_name with
+  | "" -> Error [ "invalid\n   name: cannot be empty or whitespace-only" ]
+  | valid_name ->
+    let participant = Participant.of_string valid_name in
+    let session = Session.create participant in
+    set_up_session session
+;;

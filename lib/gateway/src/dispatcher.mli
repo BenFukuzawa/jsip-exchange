@@ -17,7 +17,12 @@ open! Core
 open! Async
 open Jsip_types
 
-type t
+type t =
+  { market_data_subscribers_by_symbol :
+      Exchange_event.t Pipe.Writer.t Bag.t Symbol.Table.t
+  ; audit_subscribers : Exchange_event.t Pipe.Writer.t Bag.t
+  ; active_sessions : Session.t Participant.Table.t
+  }
 
 (** Create a dispatcher.
 

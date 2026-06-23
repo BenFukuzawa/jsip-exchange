@@ -110,16 +110,19 @@ module For_testing = struct
   let audit_subscriber_count t = Bag.length t.audit_subscribers
 end
 
-let clean_up_session t session = Session.close session
+let clean_up_session t session =
+  Session.close session;
+  Hashtbl.remove t.active_sessions (Session.participant session);
+  Deferred.unit
+;;
 
 let set_up_session t participant =
-  let sesh = Hashtbl.find t.active_sessions participant in
-  match sesh with
-  | None -> Session.create participant
-  | Some valid ->
-    if not (Session.is_closed valid)
-    then (
-      clean_up_session t valid;
-      Session.create participant)
-    else Session.create participant
+  let%bind () =
+    match Hashtbl.find t.active_sessions participant with
+    | None -> Deferred.unit
+    | Some existing -> clean_up_session t existing
+  in
+  let session = Session.create participant in
+  Hashtbl.set t.active_sessions ~key:participant ~data:session;
+  Deferred.unit
 ;;

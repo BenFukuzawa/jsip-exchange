@@ -5,10 +5,11 @@ open Jsip_gateway
 
 let print_parse line =
   match Exchange_command.parse line with
-  | Error msg ->
-    let error_msg = Error.to_string_hum msg in
-    print_endline [%string "ERROR: %{error_msg}"]
-  | Ok req -> print_s [%message (req : Exchange_command.t)]
+  | Error err -> print_endline [%string "ERROR: %{Error.to_string_hum err}"]
+  | Ok (Submit req) -> print_endline [%string "%{req#Order.Request}"]
+  | Ok (Book symbol) -> print_endline [%string "BOOK %{symbol#Symbol}"]
+  | Ok (Subscribe symbol) ->
+    print_endline [%string "SUBSCRIBE %{symbol#Symbol}"]
 ;;
 
 (* --- Successful parsing --- *)
@@ -81,7 +82,8 @@ let%expect_test "parse error: empty string" =
 
 let%expect_test "parse error: unknown command" =
   print_parse "HOLD AAPL 100 150.00";
-  [%expect {| ERROR: unknown command: HOLD (expected BUY or SELL) |}]
+  [%expect
+    {| ERROR: unknown command: HOLD (expected BUY, SELL, BOOK, or SUBSCRIBE) |}]
 ;;
 
 let%expect_test "parse error: missing fields" =
@@ -124,25 +126,29 @@ let%expect_test "parse error: unknown time-in-force" =
 
 let%expect_test "default participant: used when none specified" =
   let default = Participant.of_string "DefaultTrader" in
-  let req =
+  let cmd =
     Exchange_command.parse "BUY AAPL 100 150.00" ~default_participant:default
-    |> Result.map_error ~f:Error.of_string
     |> ok_exn
   in
-  print_endline [%string "participant=%{req.participant#Participant}"];
+  (match cmd with
+   | Submit req ->
+     print_endline [%string "participant=%{req.participant#Participant}"]
+   | _ -> print_endline "unexpected command type");
   [%expect {| participant=DefaultTrader |}]
 ;;
 
 let%expect_test "default participant: overridden by explicit 'as'" =
   let default = Participant.of_string "DefaultTrader" in
-  let req =
+  let cmd =
     Exchange_command.parse
       "BUY AAPL 100 150.00 as Alice"
       ~default_participant:default
-    |> Result.map_error ~f:Error.of_string
     |> ok_exn
   in
-  print_endline [%string "participant=%{req.participant#Participant}"];
+  (match cmd with
+   | Submit req ->
+     print_endline [%string "participant=%{req.participant#Participant}"]
+   | _ -> print_endline "unexpected command type");
   [%expect {| participant=Alice |}]
 ;;
 
@@ -239,9 +245,11 @@ let%expect_test "round-trip: parse a command, submit, format result" =
     (Harness.sell ~price_cents:15000 ~participant:Harness.bob ());
   (* Parse a buy command from text and submit it *)
   let request =
-    Exchange_command.parse "BUY AAPL 100 150.00 as Alice"
-    |> Result.map_error ~f:Error.t.of_string
-    |> ok_exn
+    match
+      Exchange_command.parse "BUY AAPL 100 150.00 as Alice" |> ok_exn
+    with
+    | Submit req -> req
+    | _ -> failwith "expected Submit"
   in
   let events = Matching_engine.submit (Harness.engine t) request in
   print_endline (Event_formatter.format_events events);

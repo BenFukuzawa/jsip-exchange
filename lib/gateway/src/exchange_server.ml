@@ -6,7 +6,7 @@ open Jsip_order_book
 module Connection_state = struct
   type t = { mutable session : Session.t option }
 
-  let participant t = Option.map t.session ~f:Session.participant
+  (* let participant t = Option.map t.session ~f:Session.participant *)
 end
 
 type t =

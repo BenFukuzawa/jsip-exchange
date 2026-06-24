@@ -12,11 +12,33 @@ open Jsip_types
 open Jsip_gateway
 
 let run_client ~host ~port ~participant_name =
-  let participant = Participant.of_string participant_name in
   let where_to_connect =
     Tcp.Where_to_connect.of_host_and_port { host; port }
   in
   let%bind conn = Rpc.Connection.client where_to_connect >>| Result.ok_exn in
+  (* Login *)
+  let%bind login_result =
+    Rpc.Rpc.dispatch_exn Rpc_protocol.login_rpc conn participant_name
+  in
+  let participant =
+    match login_result with
+    | Ok p -> p
+    | Error err ->
+      eprintf "Login failed: %s\n" (Error.to_string_hum err);
+      exit 1
+  in
+  (* Subscribe to session feed — prints events in the background *)
+  let%bind session_result =
+    Rpc.Pipe_rpc.dispatch Rpc_protocol.session_feed_rpc conn ()
+  in
+  (match session_result with
+   | Error err | Ok (Error err) ->
+     eprintf "Session feed failed: %s\n" (Error.to_string_hum err)
+   | Ok (Ok (reader, _id)) ->
+     don't_wait_for
+       (Pipe.iter_without_pushback reader ~f:(fun event ->
+          print_endline
+            [%string "[SESSION] %{Event_formatter.format_event event}"])));
   print_endline
     [%string
       {|
@@ -25,9 +47,8 @@ Commands: BUY|SELL <symbol> <size> <price> %{Time_in_force.all_str}
           BOOK <symbol>
           SUBSCRIBE <symbol>  (stream market data)
 
-Order acknowledgements, fills, and cancellations are temporarily printed
-by the server process; the SUBSCRIBE command attaches you to a per-symbol
-market-data feed.|}];
+Order acknowledgements, fills, and cancellations appear on [SESSION].
+The SUBSCRIBE command attaches you to a per-symbol market-data feed.|}];
   let rec loop () =
     print_string "> ";
     match%bind Reader.read_line (Lazy.force Reader.stdin) with

@@ -51,5 +51,15 @@ val market_data_rpc
     credentials; this simulator does not, but the same intent applies. *)
 val audit_log_rpc : (unit, Exchange_event.t, Error.t) Rpc.Pipe_rpc.t
 
-(* Validates the name and allows users to log onto their session *)
+(** Log in to the exchange. Takes a participant name string, validates it
+    (rejects empty/whitespace-only), creates a session, and registers it
+    on the dispatcher. Returns the participant on success, or an error if
+    the name is invalid or the participant is already logged in. *)
 val login_rpc : (string, Participant.t Or_error.t) Rpc.Rpc.t
+
+(** Subscribe to the logged-in participant's session feed. Returns a pipe
+    of [Exchange_event.t]s that delivers order-lifecycle events
+    ([Order_accept], [Order_cancel], [Order_reject]) and [Fill] events
+    involving this participant. Fails with ["not logged in"] if the
+    connection has not yet dispatched [login_rpc]. *)
+val session_feed_rpc : (unit, Exchange_event.t, Error.t) Rpc.Pipe_rpc.t

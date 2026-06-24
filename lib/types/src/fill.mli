@@ -27,3 +27,6 @@ val to_string : t -> string
 
 (** The total notional value of the fill in cents (price * size). *)
 val notional_cents : t -> int
+
+(* Formats a fill from the perspective of a specific participant *)
+val to_participant_view : t -> Participant.t -> string option

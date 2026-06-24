@@ -53,3 +53,6 @@ val audit_log_rpc : (unit, Exchange_event.t, Error.t) Rpc.Pipe_rpc.t
 
 (* Validates the name and allows users to log onto their session *)
 val login_rpc : (string, Participant.t Or_error.t) Rpc.Rpc.t
+
+(* Informs the client when an order of their's has been executed *)
+val session_feed_rpc : (unit, Exchange_event.t, Error.t) Rpc.Pipe_rpc.t

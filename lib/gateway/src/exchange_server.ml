@@ -6,7 +6,7 @@ open Jsip_order_book
 module Connection_state = struct
   type t = { mutable session : Session.t option }
 
-  (* let participant t = Option.map t.session ~f:Session.participant *)
+  let participant t = Option.map t.session ~f:Session.participant
 end
 
 type t =
@@ -45,27 +45,62 @@ let start ~symbols ~port () =
   let implementations =
     Rpc.Implementations.create_exn
       ~implementations:
-        [ Rpc.Rpc.implement
+        [ (* Login RPC: validates name, creates session, registers on
+             dispatcher. Returns error if name is empty/whitespace-only
+             or if the participant is already logged in. *)
+          Rpc.Rpc.implement
+            Rpc_protocol.login_rpc
+            (fun (state : Connection_state.t) name ->
+               let name = String.strip name in
+               if String.is_empty name
+               then return (Or_error.error_string "name must not be empty")
+               else (
+                 let participant = Participant.of_string name in
+                 if Hashtbl.mem dispatcher.active_sessions participant
+                 then
+                   return
+                     (Or_error.error_string
+                        [%string
+                          "participant %{name} is already logged in"])
+                 else (
+                   let%map () =
+                     Dispatcher.set_up_session dispatcher participant
+                   in
+                   let session =
+                     Hashtbl.find_exn dispatcher.active_sessions participant
+                   in
+                   state.session <- Some session;
+                   Ok participant)))
+        ; (* Submit order RPC: requires login. Overrides request
+             participant with the logged-in identity. *)
+          Rpc.Rpc.implement
             Rpc_protocol.submit_order_rpc
-            (fun state request ->
-               ignore state;
-               handle_submit ~request_writer request)
-        ; Rpc.Rpc.implement' Rpc_protocol.book_query_rpc (fun state symbol ->
-            ignore state;
-            Matching_engine.book engine symbol
-            |> Option.map ~f:Order_book.snapshot)
+            (fun (state : Connection_state.t) request ->
+               match Connection_state.participant state with
+               | None ->
+                 return (Or_error.error_string "not logged in")
+               | Some participant ->
+                 let request =
+                   { request with Order.Request.participant }
+                 in
+                 handle_submit ~request_writer request)
+        ; Rpc.Rpc.implement'
+            Rpc_protocol.book_query_rpc
+            (fun _state symbol ->
+               Matching_engine.book engine symbol
+               |> Option.map ~f:Order_book.snapshot)
         ; Rpc.Pipe_rpc.implement
             Rpc_protocol.market_data_rpc
-            (fun state symbols ->
-               ignore state;
+            (fun _state symbols ->
                let reader =
                  Dispatcher.subscribe_market_data dispatcher symbols
                in
                return (Ok reader))
-        ; Rpc.Pipe_rpc.implement Rpc_protocol.audit_log_rpc (fun state () ->
-            ignore state;
-            let reader = Dispatcher.subscribe_audit dispatcher in
-            return (Ok reader))
+        ; Rpc.Pipe_rpc.implement
+            Rpc_protocol.audit_log_rpc
+            (fun _state () ->
+               let reader = Dispatcher.subscribe_audit dispatcher in
+               return (Ok reader))
         ]
       ~on_unknown_rpc:`Close_connection
       ~on_exception:Log_on_background_exn
@@ -73,8 +108,15 @@ let start ~symbols ~port () =
   let%map tcp_server =
     Rpc.Connection.serve
       ~implementations
-      ~initial_connection_state:(fun _addr _conn ->
-        { Connection_state.session = None })
+      ~initial_connection_state:(fun _addr conn ->
+        let state = { Connection_state.session = None } in
+        (* Clean up the session when the connection closes. *)
+        don't_wait_for
+          (let%bind () = Rpc.Connection.close_finished conn in
+           match state.session with
+           | None -> Deferred.unit
+           | Some session -> Dispatcher.clean_up_session dispatcher session);
+        state)
       ~where_to_listen:(Tcp.Where_to_listen.of_port port)
       ()
   in
@@ -88,8 +130,5 @@ let close t =
   Pipe.close t.request_writer;
   Tcp.Server.close t.tcp_server
 ;;
-
-(* let%bind () = Rpc.Connection.close t.dispatcher in let%bind () =
-   Rpc.Connection.close_finished; Deferred.unit *)
 
 let close_finished t = Tcp.Server.close_finished t.tcp_server

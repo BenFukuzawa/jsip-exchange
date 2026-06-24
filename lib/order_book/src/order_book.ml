@@ -1,6 +1,13 @@
 open! Core
 open Jsip_types
-open Async_log_kernel.Ppx_log_syntax
+
+(* The order book uses a Map keyed by (Price.t, Order_id.t) per side.
+   For the buy side, prices are negated in the key so that Map.min_elt
+   always returns the "best" order on both sides:
+   - Bids: negated price → min_elt = most negative = highest real price = best bid
+   - Asks: natural price → min_elt = lowest price = best ask
+
+   A reverse index (order_ids) maps Order_id.t → Order_key.t for O(log n) removal. *)
 
 module Order_key = struct
   type t = Price.t * Order_id.t [@@deriving compare, sexp]
@@ -26,107 +33,106 @@ let create symbol =
 
 let symbol t = t.symbol
 
-(* returns map of the appropriate side needed *)
+(* Construct the map key for an order. Buy-side keys use negated prices
+   so that Map.min_elt yields the best (highest real price) bid. *)
+let make_key (order : Order.t) =
+  let price =
+    match Order.side order with
+    | Buy -> Price.of_int_cents (-(Price.to_int_cents (Order.price order)))
+    | Sell -> Order.price order
+  in
+  price, Order.order_id order
+;;
+
+(* Returns map of the appropriate side *)
 let side_map t side =
   match (side : Side.t) with Buy -> t.bids | Sell -> t.asks
 ;;
 
-(* sets the kv pair that we want and deals with duplicative keys *)
-let set_side_map t side key order =
-  match (side : Side.t) with
-  | Buy -> t.bids <- Map.set ~key ~data:order t.bids
-  | Sell ->
-    t.asks <- Map.set ~key ~data:order t.asks;
-    t.order_ids <- Map.set ~key:(Order.order_id order) ~data:key t.order_ids
+let set_side_map t side map =
+  match (side : Side.t) with Buy -> t.bids <- map | Sell -> t.asks <- map
 ;;
 
 let add t order =
-  let key = Order.price order, Order.order_id order in
+  let key = make_key order in
   let side = Order.side order in
-  set_side_map t side key order
+  set_side_map t side (Map.set (side_map t side) ~key ~data:order);
+  t.order_ids <- Map.set t.order_ids ~key:(Order.order_id order) ~data:key
 ;;
 
-(* old remove system where we search through the list for the right order and
-   we return a new list. refactor this for constant time *)
 let remove' t order_id =
-  let remove_from t side order_id =
-    let remove_key = Map.find t.order_ids order_id in
-    match remove_key with
-    | None -> None
-    | Some removal -> set_side_map t side ap.remove (side_map t side) removal
-    (* let orders = side_map t side in match List.partition_tf orders ~f:(fun
-       o -> Order_id.equal (Order.order_id o) order_id) with | [], _ -> None
-       | [ found ], rest -> set_side_map t side rest; Some found | matches, _
-       ->
-       [%log.info "BUG: More than one order matching order_id found when removing" (order_id : Order_id.t) (matches : Order.t list) (t.symbol : Symbol.t) (side : Side.t)];
-       None *)
-  in
-  match remove_from t Buy order_id with
-  | Some _ as result -> result
-  | None -> remove_from t Sell order_id
+  match Map.find t.order_ids order_id with
+  | None -> None
+  | Some key ->
+    (* Try bids first, then asks *)
+    let found =
+      match Map.find t.bids key with
+      | Some order ->
+        t.bids <- Map.remove t.bids key;
+        Some order
+      | None ->
+        (match Map.find t.asks key with
+         | Some order ->
+           t.asks <- Map.remove t.asks key;
+           Some order
+         | None -> None)
+    in
+    (match found with
+     | Some _ -> t.order_ids <- Map.remove t.order_ids order_id
+     | None -> ());
+    found
 ;;
 
 let remove t order_id = ignore (remove' t order_id : Order.t option)
 
 let find t order_id =
-  let find_in side = Map.find (side_map t side) order_id in
-  match find_in Buy with Some _ as result -> result | None -> find_in Sell
+  match Map.find t.order_ids order_id with
+  | None -> None
+  | Some key ->
+    (match Map.find t.bids key with
+     | Some _ as result -> result
+     | None -> Map.find t.asks key)
 ;;
 
-(* Compares orders order1 and order2 to see which one is better: First sort
-   based on higher price (old implementation with list not applicable
-   anymore) *)
-let compare_better_order ~order1 ~order2 side =
-  let compare_val =
-    Price.compare (Order.price order1) (Order.price order2)
-  in
-  if compare_val = 0
-  then Order_id.compare (Order.order_id order2) (Order.order_id order1)
-  else if Price.is_more_aggressive
-            side
-            ~price:(Order.price order1)
-            ~than:(Order.price order2)
-  then 1
-  else -1
-;;
-
-(* NOTE: This walks the list front-to-back and returns the *first* tradable
-   order, not the best-priced one. Orders are in reverse insertion order
-   (newest first), so this matches against whatever was most recently added,
-   regardless of price. See test_matching_engine.ml for a test that
-   demonstrates why this is wrong. *)
+(* find_match: Map.min_elt on the opposite side gives the best resting
+   order. Check that the incoming order's price is marketable against
+   the resting order's real price. *)
 let find_match t incoming =
   let incoming_side = Order.side incoming in
   let opposite_side = Side.flip incoming_side in
   let resting_orders = side_map t opposite_side in
-  match opposite_side with
-  | Buy -> Map.max_elt resting_orders
-  | Sell -> Map.min_elt resting_orders
+  match Map.min_elt resting_orders with
+  | None -> None
+  | Some (_, resting) ->
+    if Price.is_marketable
+         incoming_side
+         ~price:(Order.price incoming)
+         ~resting_price:(Order.price resting)
+    then Some resting
+    else None
 ;;
 
+(* Map.data returns orders in ascending key order (best-first for both sides).
+   List.rev flips to worst-first, placing the best prices at the bottom —
+   the visual order book layout where bids and asks meet in the middle:
+   - Bids: ascending price (best = highest at bottom)
+   - Asks: descending price (best = lowest at bottom) *)
 let orders_on_side t side = List.rev (Map.data (side_map t side))
 let is_empty t = Map.is_empty t.bids && Map.is_empty t.asks
 let count t side = Map.length (side_map t side)
 
-let best_price t side =
-  let best_order = side_map t side in
-  match side with
-  | Buy -> Map.max_elt best_order
-  | Sell -> Map.min_elt best_order
-;;
-
-(* have to refactor this too *)
 let best_level t side : Level.t option =
-  match best_price t side with
+  match Map.min_elt (side_map t side) with
   | None -> None
-  | Some price ->
+  | Some (_, best_order) ->
+    let best_price = Order.price best_order in
     let total_size =
-      List.fold (side_map t side) ~init:Size.zero ~f:(fun acc order ->
-        if Price.equal (Order.price order) price
+      Map.fold (side_map t side) ~init:Size.zero ~f:(fun ~key:_ ~data:order acc ->
+        if Price.equal (Order.price order) best_price
         then Size.( + ) acc (Order.remaining_size order)
         else acc)
     in
-    Some { price; size = total_size }
+    Some { price = best_price; size = total_size }
 ;;
 
 let best_bid_offer t : Bbo.t =

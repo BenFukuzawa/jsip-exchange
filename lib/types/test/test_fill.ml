@@ -12,6 +12,8 @@ let%expect_test "notional_cents: price * size" =
      ; aggressor_side = Buy
      ; resting_order_id = Order_id.of_string "2"
      ; resting_participant = Participant.of_string "Bob"
+     ; aggressor_client_order_id = Client_order_id.of_int 1001
+     ; resting_client_order_id = Client_order_id.of_int 1002
      }
      : Fill.t)
   in
@@ -29,6 +31,8 @@ let%expect_test "participant view" =
      ; aggressor_side = Buy
      ; resting_order_id = Order_id.of_string "2"
      ; resting_participant = Participant.of_string "Bob"
+     ; aggressor_client_order_id = Client_order_id.of_int 1001
+     ; resting_client_order_id = Client_order_id.of_int 1002
      }
      : Fill.t)
   in

@@ -46,9 +46,16 @@ let format_event = function
       (Time_in_force.to_string request.time_in_force)
   | Fill fill -> [%string "FILL %{fill#Fill}"]
   | Order_cancel
-      { order_id; participant = _; symbol; remaining_size; reason } ->
+      { client_order_id
+      ; order_id
+      ; participant = _
+      ; symbol
+      ; remaining_size
+      ; reason
+      } ->
     sprintf
-      "CANCELLED id=%s %s remaining=%d reason=%s"
+      "CANCELLED client_id=%d id=%s %s remaining=%d reason=%s"
+      (Client_order_id.to_int client_order_id)
       (Order_id.to_string order_id)
       (Symbol.to_string symbol)
       (Size.to_int remaining_size)

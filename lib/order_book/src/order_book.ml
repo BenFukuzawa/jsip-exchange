@@ -132,15 +132,6 @@ let best_level t side : Level.t option =
   | Some (_, best_order) ->
     let best_price = Order.price best_order in
     let total_size =
-      Map.fold
-        (side_map t side)
-        ~init:Size.zero
-        ~f:(fun ~key:_ ~data:order acc ->
-          if Price.equal (Order.price order) best_price
-          then Size.( + ) acc (Order.remaining_size order)
-          else acc)
-    in
-    let total_size =
       Map.data (side_map t side)
       |> List.filter ~f:(fun order ->
         Price.equal (Order.price order) best_price)

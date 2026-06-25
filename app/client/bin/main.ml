@@ -16,7 +16,6 @@ let run_client ~host ~port ~participant_name =
   let where_to_connect =
     Tcp.Where_to_connect.of_host_and_port { host; port }
   in
-  
   let%bind conn = Rpc.Connection.client where_to_connect >>| Result.ok_exn in
   print_endline
     [%string
@@ -29,11 +28,26 @@ Commands: BUY|SELL <symbol> <size> <price> %{Time_in_force.all_str}
 Order acknowledgements, fills, and cancellations are temporarily printed
 by the server process; the SUBSCRIBE command attaches you to a per-symbol
 market-data feed.|}];
-  let%bind session = Rpc.Pipe_rpc.dispatch Rpc_protocol.session_feed_rpc conn () in
-    match Or_error.join session with 
-    | Or_error ->
-    | Some result -> 
-    in 
+  let session_feed =
+    let%bind session =
+      Rpc.Pipe_rpc.dispatch Rpc_protocol.session_feed_rpc conn ()
+    in
+    match session with
+    | Error e | Ok (Error e) ->
+      print_endline [%string "Session feed error: %{Error.to_string_hum e}"];
+      Deferred.unit
+    | Ok (Ok (pipe, _metadata)) ->
+      Pipe.iter pipe ~f:(fun event ->
+        match event with
+        | Fill fill ->
+          (match Fill.to_participant_view fill participant with
+           | None -> Deferred.unit
+           | Some s ->
+             print_endline s;
+             Deferred.unit)
+        | _ -> Deferred.unit)
+  in
+  don't_wait_for session_feed;
   let rec loop () =
     print_string "> ";
     match%bind Reader.read_line (Lazy.force Reader.stdin) with

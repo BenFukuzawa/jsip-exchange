@@ -51,15 +51,22 @@ let parse ?default_participant input =
         | Sell -> Ok Side.Sell
         | _ -> Or_error.error_s [%message "invalid symbol:"]
       in
-      let%bind symbol_str, size_str, price_str, rest =
+      let%bind client_order_id_str, symbol_str, size_str, price_str, rest =
         match rest with
-        | symbol_str :: size_str :: price_str :: rest ->
-          Ok (symbol_str, size_str, price_str, rest)
+        | client_order_id :: symbol_str :: size_str :: price_str :: rest ->
+          Ok (client_order_id, symbol_str, size_str, price_str, rest)
         | _ ->
           Or_error.error_string
             [%string
-              "expected: BUY|SELL <symbol> <size> <price> [DAY|IOC] [as \
-               <name>]"]
+              "expected: BUY|SELL <client_id> <symbol> <size> <price> \
+               [DAY|IOC] [as <name>]"]
+      in
+      let%bind client_order_id =
+        match Int.of_string_opt client_order_id_str with
+        | Some id -> Ok (Client_order_id.of_int id)
+        | None ->
+          Or_error.error_string
+            [%string "invalid client_id: %{client_order_id_str}"]
       in
       let%bind size =
         match Int.of_string_opt size_str with
@@ -112,7 +119,8 @@ let parse ?default_participant input =
       in
       Ok
         (Submit
-           { symbol
+           { client_order_id
+           ; symbol
            ; participant
            ; side
            ; price

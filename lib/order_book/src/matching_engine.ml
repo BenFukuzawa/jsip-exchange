@@ -46,6 +46,8 @@ let rec match_loop ~book ~order ~fill_id =
           ; aggressor_side = Order.side order
           ; resting_order_id = Order.order_id resting
           ; resting_participant = Order.participant resting
+          ; aggressor_client_order_id = Order.client_order_id order
+          ; resting_client_order_id = Order.client_order_id resting
           }
       in
       let trade_event =
@@ -86,7 +88,8 @@ let submit t (request : Order.Request.t) =
           []
         | Ioc ->
           [ Exchange_event.Order_cancel
-              { order_id
+              { client_order_id = Order.client_order_id order
+              ; order_id
               ; participant = Order.participant order
               ; symbol = Order.symbol order
               ; remaining_size = Order.remaining_size order

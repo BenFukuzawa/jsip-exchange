@@ -17,11 +17,17 @@ open! Core
 open! Async
 open Jsip_types
 
+module Client_key : sig
+  type t = Participant.t * Client_order_id.t
+  [@@deriving compare, hash, sexp_of]
+end
+
 type t =
   { market_data_subscribers_by_symbol :
       Exchange_event.t Pipe.Writer.t Bag.t Symbol.Table.t
   ; audit_subscribers : Exchange_event.t Pipe.Writer.t Bag.t
   ; active_sessions : Session.t Participant.Table.t
+  ; seen_client_ids : Client_key.t Hash_set.t
   }
 
 (** Create a dispatcher.

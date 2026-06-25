@@ -2,17 +2,24 @@ open! Core
 open! Async
 open Jsip_types
 
+module Client_key = struct
+  type t = Participant.t * Client_order_id.t
+  [@@deriving compare, hash, sexp_of]
+end
+
 type t =
   { market_data_subscribers_by_symbol :
       Exchange_event.t Pipe.Writer.t Bag.t Symbol.Table.t
   ; audit_subscribers : Exchange_event.t Pipe.Writer.t Bag.t
   ; active_sessions : Session.t Participant.Table.t
+  ; seen_client_ids : Client_key.t Hash_set.t
   }
 
 let create () =
   { market_data_subscribers_by_symbol = Symbol.Table.create ()
   ; audit_subscribers = Bag.create ()
   ; active_sessions = Participant.Table.create ()
+  ; seen_client_ids = Hash_set.create (module Client_key)
   }
 ;;
 
@@ -82,7 +89,8 @@ let dispatch_event t (event : Exchange_event.t) =
   | Order_reject { request; reason = _ } ->
     push_to_session t request.participant event
   | Order_cancel
-      { order_id = _
+      { client_order_id = _
+      ; order_id = _
       ; participant
       ; symbol = _
       ; remaining_size = _
@@ -99,6 +107,8 @@ let dispatch_event t (event : Exchange_event.t) =
       ; aggressor_side = _
       ; resting_order_id = _
       ; resting_participant
+      ; aggressor_client_order_id = _
+      ; resting_client_order_id = _
       } ->
     push_to_session t aggressor_participant event;
     push_to_session t resting_participant event

@@ -12,6 +12,7 @@ let alice = Participant.of_string "Alice"
 let bob = Participant.of_string "Bob"
 let charlie = Participant.of_string "Charlie"
 let market_maker = Participant.of_string "MarketMaker"
+let client_order_id = Client_order_id.of_int 0
 
 (* --- Harness --- *)
 
@@ -35,7 +36,8 @@ let make_request
   ()
   : Order.Request.t
   =
-  { symbol
+  { client_order_id
+  ; symbol
   ; participant
   ; side
   ; price = Price.of_int_cents price_cents
@@ -94,7 +96,8 @@ let submit_quiet t request = Matching_engine.submit (engine t) request
 
 let sample_events : Exchange_event.t list =
   let order_request : Order.Request.t =
-    { symbol = aapl
+    { client_order_id
+    ; symbol = aapl
     ; participant = alice
     ; side = Buy
     ; price = Price.of_int_cents 15000
@@ -114,9 +117,12 @@ let sample_events : Exchange_event.t list =
       ; aggressor_side = Buy
       ; resting_order_id = Order_id.For_testing.of_int 1
       ; resting_participant = bob
+      ; aggressor_client_order_id = Client_order_id.of_int 2
+      ; resting_client_order_id = Client_order_id.of_int 1
       }
   ; Order_cancel
-      { order_id = Order_id.For_testing.of_int 1
+      { client_order_id = Client_order_id.of_int 2
+      ; order_id = Order_id.For_testing.of_int 1
       ; participant = alice
       ; symbol = aapl
       ; remaining_size = Size.of_int 50

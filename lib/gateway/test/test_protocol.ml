@@ -159,7 +159,8 @@ let%expect_test "format_event: all event types" =
     [ Exchange_event.Order_accept
         { order_id = Order_id.of_string "1"
         ; request =
-            { symbol = Symbol.of_string "AAPL"
+            { client_order_id = Client_order_id.of_int 0
+            ; symbol = Symbol.of_string "AAPL"
             ; participant = Participant.of_string "Alice"
             ; side = Buy
             ; price = Price.of_int_cents 15000
@@ -177,9 +178,12 @@ let%expect_test "format_event: all event types" =
         ; aggressor_side = Buy
         ; resting_order_id = Order_id.of_string "1"
         ; resting_participant = Participant.of_string "Bob"
+        ; aggressor_client_order_id = Client_order_id.of_int 0
+        ; resting_client_order_id = Client_order_id.of_int 1
         }
     ; Order_cancel
-        { order_id = Order_id.of_string "3"
+        { client_order_id = Client_order_id.of_int 0
+        ; order_id = Order_id.of_string "3"
         ; participant = Participant.of_string "Charlie"
         ; symbol = Symbol.of_string "TSLA"
         ; remaining_size = Size.of_int 50
@@ -187,7 +191,8 @@ let%expect_test "format_event: all event types" =
         }
     ; Order_reject
         { request =
-            { symbol = Symbol.of_string "GOOG"
+            { client_order_id = Client_order_id.of_int 0
+            ; symbol = Symbol.of_string "GOOG"
             ; participant = Participant.of_string "Alice"
             ; side = Sell
             ; price = Price.of_int_cents 28000

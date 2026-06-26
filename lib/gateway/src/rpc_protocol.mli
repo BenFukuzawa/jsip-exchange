@@ -56,3 +56,4 @@ val login_rpc : (string, Participant.t Or_error.t) Rpc.Rpc.t
 
 (* Informs the client when an order of their's has been executed *)
 val session_feed_rpc : (unit, Exchange_event.t, Error.t) Rpc.Pipe_rpc.t
+val cancel_order_rpc : (Client_order_id.t, unit Or_error.t) Rpc.Rpc.t

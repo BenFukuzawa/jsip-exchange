@@ -32,8 +32,8 @@ let%expect_test "e2e: two clients trade with each other" =
     [%expect
       {|
       [for Alice] ACCEPTED id=2 AAPL BUY 100@$150.00 DAY
-      [for Alice] FILL fill_id=1 AAPL $150.00 x100 aggressor=2(Alice) BUY resting=1(Bob)
-      [for Bob] FILL fill_id=1 AAPL $150.00 x100 aggressor=2(Alice) BUY resting=1(Bob)
+      [for Alice] FILL fill_id=1 AAPL $150.00 x100 aggressor=2(Alice) BUY resting=1(Bob) agg_client_id=3 rest_client_id=2
+      [for Bob] FILL fill_id=1 AAPL $150.00 x100 aggressor=2(Alice) BUY resting=1(Bob) agg_client_id=3 rest_client_id=2
       |}];
     return ())
 ;;
@@ -72,10 +72,10 @@ let%expect_test "e2e: three clients, sequential orders, shared book" =
     [%expect
       {|
       [for Alice] ACCEPTED id=3 AAPL BUY 80@$150.10 DAY
-      [for Alice] FILL fill_id=1 AAPL $150.10 x50 aggressor=3(Alice) BUY resting=2(Charlie)
-      [for Charlie] FILL fill_id=1 AAPL $150.10 x50 aggressor=3(Alice) BUY resting=2(Charlie)
-      [for Alice] FILL fill_id=2 AAPL $150.00 x30 aggressor=3(Alice) BUY resting=1(Bob)
-      [for Bob] FILL fill_id=2 AAPL $150.00 x30 aggressor=3(Alice) BUY resting=1(Bob)
+      [for Alice] FILL fill_id=1 AAPL $150.00 x50 aggressor=3(Alice) BUY resting=1(Bob) agg_client_id=6 rest_client_id=4
+      [for Alice] FILL fill_id=2 AAPL $150.10 x30 aggressor=3(Alice) BUY resting=2(Charlie) agg_client_id=6 rest_client_id=5
+      [for Bob] FILL fill_id=1 AAPL $150.00 x50 aggressor=3(Alice) BUY resting=1(Bob) agg_client_id=6 rest_client_id=4
+      [for Charlie] FILL fill_id=2 AAPL $150.10 x30 aggressor=3(Alice) BUY resting=2(Charlie) agg_client_id=6 rest_client_id=5
       |}];
     (* Verify book state *)
     let%bind book = rpc_book alice Harness.aapl in
@@ -85,8 +85,8 @@ let%expect_test "e2e: three clients, sequential orders, shared book" =
       === AAPL ===
         BIDS: (empty)
         ASKS:
-          $150.00 x20
-        BBO: - / $150.00 x20
+          $150.10 x20
+        BBO: - / $150.10 x20
       |}];
     return ())
 ;;
@@ -131,8 +131,8 @@ let%expect_test "e2e: market data subscriber receives trade and BBO updates" =
     [%expect
       {|
       [for Alice] ACCEPTED id=2 AAPL BUY 100@$150.00 DAY
-      [for Alice] FILL fill_id=1 AAPL $150.00 x100 aggressor=2(Alice) BUY resting=1(Bob)
-      [for Bob] FILL fill_id=1 AAPL $150.00 x100 aggressor=2(Alice) BUY resting=1(Bob)
+      [for Alice] FILL fill_id=1 AAPL $150.00 x100 aggressor=2(Alice) BUY resting=1(Bob) agg_client_id=8 rest_client_id=7
+      [for Bob] FILL fill_id=1 AAPL $150.00 x100 aggressor=2(Alice) BUY resting=1(Bob) agg_client_id=8 rest_client_id=7
       [MD Subscriber] TRADE AAPL $150.00 x100
       [MD Subscriber] BBO AAPL bid=- ask=-
       |}];
@@ -254,9 +254,9 @@ let%expect_test "e2e: audit log subscriber sees full unfiltered stream \
     in
     [%expect
       {|
-      [for Bob] ACCEPTED id=1 AAPL SELL 100@$150.00 DAY
       [AUDIT] ACCEPTED id=1 AAPL SELL 100@$150.00 DAY
       [AUDIT] BBO AAPL bid=- ask=$150.00 x100
+      [for Bob] ACCEPTED id=1 AAPL SELL 100@$150.00 DAY
       |}];
     (* Post a sell on TSLA — audit subscriber should see this too
        (multi-symbol). *)
@@ -271,21 +271,21 @@ let%expect_test "e2e: audit log subscriber sees full unfiltered stream \
     in
     [%expect
       {|
-      [for Bob] ACCEPTED id=2 TSLA SELL 100@$200.00 DAY
       [AUDIT] ACCEPTED id=2 TSLA SELL 100@$200.00 DAY
       [AUDIT] BBO TSLA bid=- ask=$200.00 x100
+      [for Bob] ACCEPTED id=2 TSLA SELL 100@$200.00 DAY
       |}];
     (* Cross the AAPL sell — the audit log should see ACCEPTED + FILL + BBO. *)
     let%bind () = rpc_submit alice (Harness.buy ~price_cents:15000 ()) in
     [%expect
       {|
-      [for Alice] ACCEPTED id=3 AAPL BUY 100@$150.00 DAY
-      [for Alice] FILL fill_id=1 AAPL $150.00 x100 aggressor=3(Alice) BUY resting=1(Bob)
-      [for Bob] FILL fill_id=1 AAPL $150.00 x100 aggressor=3(Alice) BUY resting=1(Bob)
       [AUDIT] ACCEPTED id=3 AAPL BUY 100@$150.00 DAY
-      [AUDIT] FILL fill_id=1 AAPL $150.00 x100 aggressor=3(Alice) BUY resting=1(Bob)
+      [AUDIT] FILL fill_id=1 AAPL $150.00 x100 aggressor=3(Alice) BUY resting=1(Bob) agg_client_id=28 rest_client_id=26
       [AUDIT] TRADE AAPL $150.00 x100
       [AUDIT] BBO AAPL bid=- ask=-
+      [for Alice] ACCEPTED id=3 AAPL BUY 100@$150.00 DAY
+      [for Alice] FILL fill_id=1 AAPL $150.00 x100 aggressor=3(Alice) BUY resting=1(Bob) agg_client_id=28 rest_client_id=26
+      [for Bob] FILL fill_id=1 AAPL $150.00 x100 aggressor=3(Alice) BUY resting=1(Bob) agg_client_id=28 rest_client_id=26
       |}];
     return ())
 ;;

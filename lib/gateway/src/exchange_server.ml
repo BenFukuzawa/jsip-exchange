@@ -77,23 +77,7 @@ let start ~symbols ~port () =
                | None -> return (Or_error.error_string "not logged in")
                | Some participant ->
                  let request = { request with Order.Request.participant } in
-                 if Hash_set.mem
-                      dispatcher.seen_client_ids
-                      (participant, request.client_order_id)
-                 then (
-                   let reject =
-                     Exchange_event.Order_reject
-                       { request; reason = "duplivate client order id" }
-                   in
-                   let session =
-                     Hashtbl.find_exn dispatcher.active_sessions participant
-                   in
-                   Pipe.write_if_open session reject)
-                 else (
-                   Hash_set.add
-                     dispatcher.seen_client_ids
-                     (participant, request.client_order_id);
-                   handle_submit ~request_writer request))
+                 handle_submit ~request_writer request)
         ; Rpc.Rpc.implement' Rpc_protocol.book_query_rpc (fun state symbol ->
             ignore state;
             Matching_engine.book engine symbol
@@ -116,6 +100,20 @@ let start ~symbols ~port () =
                match state.session with
                | None -> return (Or_error.error_string "not active session")
                | Some session -> return (Ok (Session.reader session)))
+        ; Rpc.Rpc.implement'
+            Rpc_protocol.cancel_order_rpc
+            (fun state client_order_id ->
+               match Connection_state.participant state with
+               | None -> Or_error.error_string "not logged in"
+               | Some participant ->
+                 let events =
+                   Matching_engine.cancel
+                     engine
+                     ~participant
+                     ~client_order_id
+                 in
+                 Dispatcher.dispatch dispatcher events;
+                 Ok ())
         ]
       ~on_unknown_rpc:`Close_connection
       ~on_exception:Log_on_background_exn

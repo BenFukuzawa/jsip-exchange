@@ -12,7 +12,12 @@ let alice = Participant.of_string "Alice"
 let bob = Participant.of_string "Bob"
 let charlie = Participant.of_string "Charlie"
 let market_maker = Participant.of_string "MarketMaker"
-let client_order_id = Client_order_id.of_int 0
+let next_client_id = ref 0
+
+let fresh_client_id () =
+  incr next_client_id;
+  Client_order_id.of_int !next_client_id
+;;
 
 (* --- Harness --- *)
 
@@ -36,7 +41,7 @@ let make_request
   ()
   : Order.Request.t
   =
-  { client_order_id
+  { client_order_id = fresh_client_id ()
   ; symbol
   ; participant
   ; side
@@ -96,7 +101,7 @@ let submit_quiet t request = Matching_engine.submit (engine t) request
 
 let sample_events : Exchange_event.t list =
   let order_request : Order.Request.t =
-    { client_order_id
+    { client_order_id = fresh_client_id ()
     ; symbol = aapl
     ; participant = alice
     ; side = Buy

@@ -32,3 +32,25 @@ let%expect_test "seed_book: places symmetric bids and asks around fair value"
       |}];
     return ())
 ;;
+
+let%expect_test "long running market maker: pushes a small sequence of \n\
+                \                 events into the market maker's event \
+                 handler and asserts \n\
+                \                 that the resulting inventory and \
+                 outstanding-orders state \n\
+                \                 match what you expect."
+  =
+  with_server ~symbols:[ Harness.aapl ] (fun ~server:_ ~port ->
+    let%bind mm = connect_as ~port Harness.market_maker in
+    let%bind () = Market_maker.seed_book default_config (connection mm) in
+    [%expect
+      {|
+      [for MarketMaker] ACCEPTED id=1 AAPL BUY 100@$149.90 DAY
+      [for MarketMaker] REJECTED AAPL SELL 100@$150.10 reason=duplicate client order id
+      [for MarketMaker] REJECTED AAPL BUY 100@$149.89 reason=duplicate client order id
+      [for MarketMaker] REJECTED AAPL SELL 100@$150.11 reason=duplicate client order id
+      [for MarketMaker] REJECTED AAPL BUY 100@$149.88 reason=duplicate client order id
+      [for MarketMaker] REJECTED AAPL SELL 100@$150.12 reason=duplicate client order id
+      |}];
+    return ())
+;;

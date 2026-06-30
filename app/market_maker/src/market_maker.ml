@@ -3,6 +3,13 @@ open! Async
 open Jsip_types
 open Jsip_gateway
 
+
+
+module Market_maker_bot = struct
+  type t = 
+end
+
+
 module Config = struct
   type t =
     { participant : Participant.t
@@ -11,6 +18,7 @@ module Config = struct
     ; half_spread_cents : int
     ; size_per_level : int
     ; num_levels : int
+    ; inventory_skew_cents_per_share : int
     }
   [@@deriving sexp_of]
 end
@@ -30,7 +38,7 @@ module State = struct
   ;;
 end
 
-let seed_book (config : Config.t) conn =
+let seed_book (t : State.t) (config : Config.t) conn =
   let submit request =
     let%map result =
       Rpc.Rpc.dispatch_exn Rpc_protocol.submit_order_rpc conn request
@@ -48,13 +56,20 @@ let seed_book (config : Config.t) conn =
     (List.init config.num_levels ~f:Fn.id)
     ~f:(fun level ->
       let offset = config.half_spread_cents + level in
+      let amt =
+        Hashtbl.find t.inventory config.symbol |> Option.value ~default:0
+      in
+      let skew_fair =
+        config.fair_value_cents
+        - (amt * config.inventory_skew_cents_per_share)
+      in
       let%bind () =
         submit
           ({ client_order_id = Client_order_id.of_int 0
            ; symbol = config.symbol
            ; participant = config.participant
            ; side = Buy
-           ; price = Price.of_int_cents (config.fair_value_cents - offset)
+           ; price = Price.of_int_cents (skew_fair - offset)
            ; size = Size.of_int config.size_per_level
            ; time_in_force = Day
            }
@@ -65,7 +80,7 @@ let seed_book (config : Config.t) conn =
            ; symbol = config.symbol
            ; participant = config.participant
            ; side = Sell
-           ; price = Price.of_int_cents (config.fair_value_cents + offset)
+           ; price = Price.of_int_cents (skew_fair + offset)
            ; size = Size.of_int config.size_per_level
            ; time_in_force = Day
            }
@@ -74,7 +89,7 @@ let seed_book (config : Config.t) conn =
       Deferred.unit)
 ;;
 
-let handle_event (t : State.t) (event : Exchange_event.t) =
+let handle_event (t : State.t) conn (event : Exchange_event.t) =
   match event with
   | Order_accept { request; _ } ->
     Hash_set.add t.resting_orders request.client_order_id
@@ -103,22 +118,23 @@ let handle_event (t : State.t) (event : Exchange_event.t) =
          else fill.resting_client_order_id
        in
        Hashtbl.change t.inventory fill.symbol ~f:(fun current_inv_opt ->
-         let current_inv =
-           match current_inv_opt with None -> 0 | Some inv -> inv
-         in
+         let current_inv = Option.value current_inv_opt ~default:0 in
          let size_int = Size.to_int fill.size in
          match our_side with
          | Buy -> Some (current_inv + size_int)
          | Sell -> Some (current_inv - size_int));
-       Hash_set.remove t.resting_orders our_client_id
+       let to_be_cleared = Hash_set.to_list t.resting_orders in
+       Hash_set.remove t.resting_orders our_client_id;
+       don't_wait_for
+         (Deferred.List.iter to_be_cleared ~how:`Parallel ~f:(fun id ->
+            let%map _result =
+              Rpc.Rpc.dispatch_exn Rpc_protocol.cancel_order_rpc conn id
+            in
+            ()))
      | false -> ())
 ;;
 
-let run ~port (config : Config.t) =
-  let where =
-    Tcp.Where_to_connect.of_host_and_port { host = "localhost"; port }
-  in
-  let%bind conn = Rpc.Connection.client where >>| Result.ok_exn in
+let run (config : Config.t) conn =
   let%bind (_ : Participant.t) =
     Rpc.Rpc.dispatch_exn
       Rpc_protocol.login_rpc
@@ -132,7 +148,7 @@ let run ~port (config : Config.t) =
   let state = State.create config.participant in
   don't_wait_for
     (Pipe.iter_without_pushback session_feed ~f:(fun event ->
-       handle_event state event));
-  let%bind () = seed_book config conn in
+       handle_event state conn event));
+  let%bind () = seed_book state config conn in
   Deferred.never ()
 ;;

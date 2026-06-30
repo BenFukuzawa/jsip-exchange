@@ -7,7 +7,7 @@
 
 open! Core
 
-(** An order as submitted by a participant (before the exchange assigns an
+(** An order as submitted by a part icipant (before the exchange assigns an
     order ID). This is what the gateway receives. *)
 module Request : sig
   type t =

@@ -12,6 +12,8 @@ let alice = Participant.of_string "Alice"
 let bob = Participant.of_string "Bob"
 let charlie = Participant.of_string "Charlie"
 let market_maker = Participant.of_string "MarketMaker"
+let market_maker2 = Participant.of_string "MarketMaker2"
+let trader = Participant.of_string "Trader"
 let next_client_id = ref 0
 
 let fresh_client_id () =

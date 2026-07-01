@@ -48,7 +48,7 @@ let%expect_test "exact cross at same price" =
     {|
     ACCEPTED id=1 AAPL SELL 100@$150.00 DAY
     ACCEPTED id=2 AAPL BUY 100@$150.00 DAY
-    FILL fill_id=1 AAPL $150.00 x100 aggressor=2(Alice) BUY resting=1(Bob) agg_client_id=6 rest_client_id=5
+    FILL fill_id=1 AAPL $150.00 x100 aggressor=2 (client-id=6) (Alice) BUY resting=1 (client-id=5) (Bob)
     |}]
 ;;
 
@@ -60,7 +60,7 @@ let%expect_test "buy crosses at resting price, not aggressor price" =
     {|
     ACCEPTED id=1 AAPL SELL 100@$150.00 DAY
     ACCEPTED id=2 AAPL BUY 100@$151.00 DAY
-    FILL fill_id=1 AAPL $150.00 x100 aggressor=2(Alice) BUY resting=1(Bob) agg_client_id=8 rest_client_id=7
+    FILL fill_id=1 AAPL $150.00 x100 aggressor=2 (client-id=8) (Alice) BUY resting=1 (client-id=7) (Bob)
     |}]
 ;;
 
@@ -74,7 +74,7 @@ let%expect_test "partial fill: buy is larger than resting sell" =
     {|
     ACCEPTED id=1 AAPL SELL 60@$150.00 DAY
     ACCEPTED id=2 AAPL BUY 100@$150.00 DAY
-    FILL fill_id=1 AAPL $150.00 x60 aggressor=2(Alice) BUY resting=1(Bob) agg_client_id=10 rest_client_id=9
+    FILL fill_id=1 AAPL $150.00 x60 aggressor=2 (client-id=10) (Alice) BUY resting=1 (client-id=9) (Bob)
     |}];
   (* Remainder rests on the book *)
   Harness.print_book t Harness.aapl;
@@ -106,8 +106,8 @@ let%expect_test "aggressor sweeps multiple resting orders" =
     ACCEPTED id=1 AAPL SELL 50@$150.00 DAY
     ACCEPTED id=2 AAPL SELL 80@$150.00 DAY
     ACCEPTED id=3 AAPL BUY 100@$150.00 DAY
-    FILL fill_id=1 AAPL $150.00 x50 aggressor=3(Alice) BUY resting=1(Bob) agg_client_id=13 rest_client_id=11
-    FILL fill_id=2 AAPL $150.00 x50 aggressor=3(Alice) BUY resting=2(Charlie) agg_client_id=13 rest_client_id=12
+    FILL fill_id=1 AAPL $150.00 x50 aggressor=3 (client-id=13) (Alice) BUY resting=1 (client-id=11) (Bob)
+    FILL fill_id=2 AAPL $150.00 x50 aggressor=3 (client-id=13) (Alice) BUY resting=2 (client-id=12) (Charlie)
     |}]
 ;;
 
@@ -135,7 +135,7 @@ let%expect_test "IOC: partial fill then cancel remainder" =
     {|
     ACCEPTED id=1 AAPL SELL 40@$150.00 DAY
     ACCEPTED id=2 AAPL BUY 100@$150.00 IOC
-    FILL fill_id=1 AAPL $150.00 x40 aggressor=2(Alice) BUY resting=1(Bob) agg_client_id=16 rest_client_id=15
+    FILL fill_id=1 AAPL $150.00 x40 aggressor=2 (client-id=16) (Alice) BUY resting=1 (client-id=15) (Bob)
     CANCELLED client_id=16 id=2 AAPL remaining=60 reason=IOC_REMAINDER
     |}]
 ;;
@@ -150,7 +150,7 @@ let%expect_test "IOC: full fill means no cancel event" =
     {|
     ACCEPTED id=1 AAPL SELL 100@$150.00 DAY
     ACCEPTED id=2 AAPL BUY 100@$150.00 IOC
-    FILL fill_id=1 AAPL $150.00 x100 aggressor=2(Alice) BUY resting=1(Bob) agg_client_id=18 rest_client_id=17
+    FILL fill_id=1 AAPL $150.00 x100 aggressor=2 (client-id=18) (Alice) BUY resting=1 (client-id=17) (Bob)
     |}]
 ;;
 
@@ -249,7 +249,7 @@ let%expect_test "price priority: naive impl matches first-found, not best" =
     ACCEPTED id=1 AAPL SELL 100@$10.00 DAY
     ACCEPTED id=2 AAPL SELL 100@$10.05 DAY
     ACCEPTED id=3 AAPL BUY 100@$10.05 DAY
-    FILL fill_id=1 AAPL $10.00 x100 aggressor=3(Alice) BUY resting=1(Charlie) agg_client_id=25 rest_client_id=23
+    FILL fill_id=1 AAPL $10.00 x100 aggressor=3 (client-id=25) (Alice) BUY resting=1 (client-id=23) (Charlie)
     |}]
 ;;
 
@@ -368,7 +368,7 @@ let%expect_test "scenario: two participants trade, book reflects state" =
     ACCEPTED id=3 AAPL SELL 100@$150.10 DAY
     ACCEPTED id=4 AAPL SELL 150@$150.20 DAY
     ACCEPTED id=5 AAPL BUY 50@$150.10 DAY
-    FILL fill_id=1 AAPL $150.10 x50 aggressor=5(Charlie) BUY resting=3(Bob) agg_client_id=40 rest_client_id=38
+    FILL fill_id=1 AAPL $150.10 x50 aggressor=5 (client-id=40) (Charlie) BUY resting=3 (client-id=38) (Bob)
     === AAPL ===
       BIDS:
         $149.80 x200
@@ -405,9 +405,9 @@ let%expect_test "scenario: aggressive IOC sweeps entire book" =
     ACCEPTED id=2 AAPL SELL 50@$150.10 DAY
     ACCEPTED id=3 AAPL SELL 50@$150.20 DAY
     ACCEPTED id=4 AAPL BUY 200@$150.20 IOC
-    FILL fill_id=1 AAPL $150.00 x50 aggressor=4(Alice) BUY resting=1(Bob) agg_client_id=44 rest_client_id=41
-    FILL fill_id=2 AAPL $150.10 x50 aggressor=4(Alice) BUY resting=2(Charlie) agg_client_id=44 rest_client_id=42
-    FILL fill_id=3 AAPL $150.20 x50 aggressor=4(Alice) BUY resting=3(Bob) agg_client_id=44 rest_client_id=43
+    FILL fill_id=1 AAPL $150.00 x50 aggressor=4 (client-id=44) (Alice) BUY resting=1 (client-id=41) (Bob)
+    FILL fill_id=2 AAPL $150.10 x50 aggressor=4 (client-id=44) (Alice) BUY resting=2 (client-id=42) (Charlie)
+    FILL fill_id=3 AAPL $150.20 x50 aggressor=4 (client-id=44) (Alice) BUY resting=3 (client-id=43) (Bob)
     CANCELLED client_id=44 id=4 AAPL remaining=50 reason=IOC_REMAINDER
     === AAPL ===
       BIDS: (empty)
@@ -459,8 +459,8 @@ let%expect_test "scenario: fill IDs are globally sequential" =
     ACCEPTED id=1 AAPL SELL 100@$150.00 DAY
     ACCEPTED id=2 TSLA SELL 100@$200.00 DAY
     ACCEPTED id=3 AAPL BUY 100@$150.00 DAY
-    FILL fill_id=1 AAPL $150.00 x100 aggressor=3(Alice) BUY resting=1(Bob) agg_client_id=50 rest_client_id=48
+    FILL fill_id=1 AAPL $150.00 x100 aggressor=3 (client-id=50) (Alice) BUY resting=1 (client-id=48) (Bob)
     ACCEPTED id=4 TSLA BUY 100@$200.00 DAY
-    FILL fill_id=2 TSLA $200.00 x100 aggressor=4(Alice) BUY resting=2(Charlie) agg_client_id=51 rest_client_id=49
+    FILL fill_id=2 TSLA $200.00 x100 aggressor=4 (client-id=51) (Alice) BUY resting=2 (client-id=49) (Charlie)
     |}]
 ;;

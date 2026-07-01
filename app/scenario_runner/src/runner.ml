@@ -26,7 +26,7 @@ let start_bot ~where_to_connect ~oracle (Bot_spec.T spec) =
       (Or_error.error_s
          [%message
            "Scenario runner: cancel RPC not implemented yet"
-             (order_id : Order_id.t)])
+             (order_id : Client_order_id.t)])
   in
   let bot =
     Bot_runtime.create

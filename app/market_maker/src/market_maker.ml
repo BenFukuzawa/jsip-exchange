@@ -2,13 +2,6 @@ open! Core
 open! Async
 open Jsip_types
 open Jsip_gateway
-open Jsip_bot_runtime.Bot_runtime.Bot
-
-
-module Market_maker_bot = struct
-  type t = 
-end
-
 
 module Config = struct
   type t =
@@ -28,15 +21,28 @@ module State = struct
     { participant : Participant.t
     ; inventory : int Symbol.Table.t
     ; resting_orders : Client_order_id.Hash_set.t
+    ; next_client_id : int ref
+    (** Monotonic source of fresh client order IDs for this bot's
+        submissions. *)
     }
 
   let create participant =
     { participant
     ; inventory = Symbol.Table.create ()
     ; resting_orders = Hash_set.create (module Client_order_id)
+    ; next_client_id = ref 0
     }
   ;;
 end
+
+(* Allocate the next client order ID for a new order. *)
+let fresh_client_id (_t : State.t) : Client_order_id.t =
+  (* TODO(human): return a fresh Client_order_id and advance the counter so
+     the next call returns a different one. Think about why reusing an ID —
+     or restarting per-symbol from 0 — collides with duplicate detection. *)
+  _t.next_client_id := !(_t.next_client_id) + 1;
+  Client_order_id.of_int !(_t.next_client_id)
+;;
 
 let seed_book (t : State.t) (config : Config.t) conn =
   let submit request =
@@ -63,9 +69,11 @@ let seed_book (t : State.t) (config : Config.t) conn =
         config.fair_value_cents
         - (amt * config.inventory_skew_cents_per_share)
       in
+      let buy_client_order_id = fresh_client_id t in
+      let sell_client_order_id = fresh_client_id t in
       let%bind () =
         submit
-          ({ client_order_id = Client_order_id.of_int 0
+          ({ client_order_id = buy_client_order_id
            ; symbol = config.symbol
            ; participant = config.participant
            ; side = Buy
@@ -76,7 +84,7 @@ let seed_book (t : State.t) (config : Config.t) conn =
            : Order.Request.t)
       and () =
         submit
-          ({ client_order_id = Client_order_id.of_int 0
+          ({ client_order_id = sell_client_order_id
            ; symbol = config.symbol
            ; participant = config.participant
            ; side = Sell

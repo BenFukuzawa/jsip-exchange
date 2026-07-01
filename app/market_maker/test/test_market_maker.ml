@@ -6,7 +6,7 @@ open Jsip_test_harness
 open Jsip_market_maker
 open E2e_helpers
 open Jsip_gateway
-open Jsip_types
+open! Jsip_types
 
 let default_config : Market_maker.Config.t =
   { participant = Harness.market_maker
@@ -15,6 +15,7 @@ let default_config : Market_maker.Config.t =
   ; half_spread_cents = 10
   ; size_per_level = 100
   ; num_levels = 3
+  ; inventory_skew_cents_per_share = 0
   }
 ;;
 
@@ -22,7 +23,8 @@ let%expect_test "seed_book: places symmetric bids and asks around fair value"
   =
   with_server ~symbols:[ Harness.aapl ] (fun ~server:_ ~port ->
     let%bind mm = connect_as ~port Harness.market_maker2 in
-    let%bind () = Market_maker.seed_book default_config (connection mm) in
+    let state = Market_maker.State.create Harness.market_maker2 in
+    let%bind () = Market_maker.seed_book state default_config (connection mm) in
     [%expect
       {|
       [for MarketMaker2] ACCEPTED id=1 AAPL BUY 100@$149.90 DAY
@@ -59,6 +61,9 @@ let%expect_test "long running market maker: pushes a small sequence of \n\
     return ())
 ;;
 
+(*_ Disabled — this test needs [State] and [handle_event] exposed in the .mli,
+   and its event values are still [_] placeholders (which aren't valid
+   expressions). Rebuild it properly in Ex3 as a bot-framework unit test.
 let%expect_test "Confirm state changed post fill" =
   let participant = Harness.market_maker in
   let symbol = Harness.aapl in
@@ -91,6 +96,7 @@ let%expect_test "Confirm state changed post fill" =
   [%expect {| ((AAPL 100)) |}];
   return ()
 ;;
+*)
 
 (* let%expect_test "Cancel and re-quote on every fill" = with_server
    ~symbols:[ Harness.aapl ] (fun ~server:_ ~port -> let%bind mm = connect_as

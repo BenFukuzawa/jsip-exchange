@@ -14,12 +14,12 @@ type t =
   ; price : Price.t (** The price at which the trade occurred. *)
   ; size : Size.t (** The number of shares/units traded. *)
   ; aggressor_order_id : Order_id.t
+  ; aggressor_client_order_id : Client_order_id.t
   ; aggressor_participant : Participant.t
   ; aggressor_side : Side.t
   ; resting_order_id : Order_id.t
-  ; resting_participant : Participant.t
-  ; aggressor_client_order_id : Client_order_id.t
   ; resting_client_order_id : Client_order_id.t
+  ; resting_participant : Participant.t
   }
 [@@deriving sexp, bin_io]
 
@@ -30,5 +30,8 @@ val to_string : t -> string
 (** The total notional value of the fill in cents (price * size). *)
 val notional_cents : t -> int
 
-(* Formats a fill from the perspective of a specific participant *)
+(** Formats a fill from the perspective of a given participant, if fill does
+    not involve a given participant it returns `None`
+
+    Does not expose the inputted client_order_id. *)
 val to_participant_view : t -> Participant.t -> string option

@@ -26,8 +26,21 @@ module Config : sig
     ; num_levels : int
     (** Number of price levels on each side. The bot places orders at
         [fair_value +/- spread], [fair_value +/- (spread + tick)], etc. *)
+    ; inventory_skew_cents_per_share : int
+    (** How far to shift the quoted ladder per share of inventory. When long,
+        [skewed_fair = fair_value - (inventory * this)] pulls both bid and ask
+        down to encourage trades that flatten the position. *)
     }
   [@@deriving sexp_of]
+end
+
+(** The market maker's mutable per-run state: per-symbol inventory, the set of
+    currently-resting client order IDs, and the counter used to allocate fresh
+    ones. Exposed so tests can construct state and drive the bot directly. *)
+module State : sig
+  type t
+
+  val create : Participant.t -> t
 end
 
 (** Submit the market maker's initial set of resting orders over the given
@@ -36,6 +49,6 @@ end
     only returns success/failure of the submission attempt; the actual
     matching-engine response (acceptance, fills, rejection) arrives on the
     participant's session feed. *)
-val seed_book : Config.t -> Rpc.Connection.t -> unit Deferred.t
+val seed_book : State.t -> Config.t -> Rpc.Connection.t -> unit Deferred.t
 
 val run : Config.t -> Rpc.Connection.t -> unit Deferred.t

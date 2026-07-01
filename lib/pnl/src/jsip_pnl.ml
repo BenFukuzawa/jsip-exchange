@@ -59,9 +59,10 @@ let apply_signed_fill (position : Position.t) ~qty ~price_cents : Position.t =
            one opens at this fill's price. *)
         new_inventory * price_cents
     in
-    (* TODO(human): compute [realized_delta], the cash P&L realized by the
-       shares this fill closes against the existing position. See the "Learn
-       by Doing" note for the shape of the answer. *)
+    (* Only the shares that overlap the existing position close and realize
+       P&L; any excess opens the new side (handled by [new_cost_basis_cents]).
+       [direction] carries the sign: a long profits when [price > avg], a
+       short profits when [price < avg]. *)
     let closed_shares = Int.min (Int.abs qty) (Int.abs inventory) in
     let direction = if inventory > 0 then 1 else -1 in
     let realized_delta =

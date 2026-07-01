@@ -2,7 +2,7 @@ open! Core
 open! Async
 open Jsip_types
 open Jsip_gateway
-
+open Jsip_bot_runtime.Bot_runtime.Bot
 
 
 module Market_maker_bot = struct

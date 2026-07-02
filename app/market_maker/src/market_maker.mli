@@ -1,54 +1,58 @@
-(** A simple market-making bot.
+(** A dynamic market-making bot.
 
-    A market maker provides liquidity by continuously quoting both a bid
-    (buy) and an ask (sell) price. They profit from the spread between the
-    two prices, but take risk if the market moves against their inventory.
+    A market maker provides liquidity by continuously quoting both a bid and an
+    ask around its estimate of fair value, profiting from the spread while
+    taking on inventory risk. This bot is {e dynamic}: it reacts to its own
+    fills by skewing its quotes against its accumulated inventory, nudging the
+    market to trade its position back toward flat.
 
-    This bot places a fixed set of resting orders on both sides of the book
-    around a configured "fair value" price. It does not dynamically adjust
-    its quotes in response to fills -- that is left as an extension. *)
+    It is a [Jsip_bot_runtime.Bot_runtime.Bot], so the scenario runner drives
+    it like any other bot: [on_start] seeds the initial ladder, and [on_event]
+    re-quotes on every fill. Its fair-value anchor is the live fundamental from
+    the runtime's oracle ([Context.fundamental]), so the ladder drifts with the
+    simulated true price. *)
 
 open! Core
 open! Async
 open Jsip_types
 
-(** Configuration for the market maker. *)
-module Config : sig
-  type t =
-    { participant : Participant.t
-    ; symbol : Symbol.t
-    ; fair_value_cents : int
-    (** The market maker's estimate of the true price, in cents. *)
-    ; half_spread_cents : int
-    (** Half-spread in cents. The bot will bid at [fair_value - half_spread]
-        and offer at [fair_value + half_spread]. *)
-    ; size_per_level : int (** Number of shares at each price level. *)
-    ; num_levels : int
-    (** Number of price levels on each side. The bot places orders at
-        [fair_value +/- spread], [fair_value +/- (spread + tick)], etc. *)
-    ; inventory_skew_cents_per_share : int
-    (** How far to shift the quoted ladder per share of inventory. When long,
-        [skewed_fair = fair_value - (inventory * this)] pulls both bid and ask
-        down to encourage trades that flatten the position. *)
-    }
-  [@@deriving sexp_of]
+module Market_maker_bot : sig
+  (** Static configuration. Identity, RNG, oracle, and submit/cancel come from
+      the [Context] at runtime, so they are deliberately absent here. *)
+  module Config : sig
+    type t =
+      { symbol : Symbol.t
+      ; half_spread_cents : int
+      (** Half-spread in cents around the (skewed) fair value. *)
+      ; size_per_level : int (** Shares posted at each price level. *)
+      ; num_levels : int (** Number of levels quoted on each side. *)
+      ; inventory_skew_cents_per_share : int
+      (** How far to shift the ladder per share of inventory. When long,
+          [skewed_fair = fair - inventory * this] pulls both quotes down. *)
+      }
+    [@@deriving sexp_of]
+  end
+
+  val name : string
+
+  (** Seed the initial quote ladder. Called once before the tick loop. *)
+  val on_start
+    :  Config.t
+    -> Jsip_bot_runtime.Bot_runtime.Context.t
+    -> unit Deferred.t
+
+  (** No periodic work: this bot only re-quotes in reaction to fills. *)
+  val on_tick
+    :  Config.t
+    -> Jsip_bot_runtime.Bot_runtime.Context.t
+    -> unit Deferred.t
+
+  (** Track resting orders and inventory from session-feed events, and on each
+      [Fill] involving this bot, cancel the outstanding ladder and re-post a
+      fresh one skewed by the new inventory. *)
+  val on_event
+    :  Config.t
+    -> Jsip_bot_runtime.Bot_runtime.Context.t
+    -> Exchange_event.t
+    -> unit Deferred.t
 end
-
-(** The market maker's mutable per-run state: per-symbol inventory, the set of
-    currently-resting client order IDs, and the counter used to allocate fresh
-    ones. Exposed so tests can construct state and drive the bot directly. *)
-module State : sig
-  type t
-
-  val create : Participant.t -> t
-end
-
-(** Submit the market maker's initial set of resting orders over the given
-    open [Rpc.Connection.t]. The connection must already be logged in as
-    [config.participant]. [submit_order_rpc] is one-way, so this function
-    only returns success/failure of the submission attempt; the actual
-    matching-engine response (acceptance, fills, rejection) arrives on the
-    participant's session feed. *)
-val seed_book : State.t -> Config.t -> Rpc.Connection.t -> unit Deferred.t
-
-val run : Config.t -> Rpc.Connection.t -> unit Deferred.t

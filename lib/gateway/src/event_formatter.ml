@@ -75,9 +75,9 @@ let format_event = function
   | Trade_report { symbol; price; size } ->
     let size = Size.to_int size in
     [%string "TRADE %{symbol#Symbol} %{price#Price} x%{size#Int}"]
-  | Cancel_reject { participant = _; client_order_id; reason = _ } ->
+  | Cancel_reject { participant = _; client_order_id; reason } ->
     let client_id = Client_order_id.to_int client_order_id in
-    [%string "CANCEL %{client_id#Int}"]
+    [%string "CANCEL_REJECTED client_id=%{client_id#Int} reason=%{reason}"]
 ;;
 
 let format_events events =

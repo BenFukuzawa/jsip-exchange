@@ -464,3 +464,87 @@ let%expect_test "scenario: fill IDs are globally sequential" =
     FILL fill_id=2 TSLA $200.00 x100 aggressor=4 (client-id=51) (Alice) BUY resting=2 (client-id=49) (Charlie)
     |}]
 ;;
+
+(* ================================================================ *)
+(* Cancellation *)
+(* ================================================================ *)
+
+(* Cancel by the same (participant, client_order_id) pair used to submit. We
+   hold onto the request so we can read back the client order id the harness
+   generated for it. *)
+let cancel t (request : Order.Request.t) =
+  Matching_engine.cancel
+    (Harness.engine t)
+    ~participant:request.participant
+    ~client_order_id:request.client_order_id
+;;
+
+let%expect_test "cancel: resting order is removed and confirmed" =
+  let t = Harness.create () in
+  let order = Harness.buy ~price_cents:15000 () in
+  submit_ t order;
+  [%expect {| ACCEPTED id=1 AAPL BUY 100@$150.00 DAY |}];
+  Harness.print_events ~show:Harness.Show.no_market_data (cancel t order);
+  [%expect {| CANCELLED client_id=52 id=1 AAPL remaining=100 reason=PARTICIPANT_REQUESTED |}];
+  (* The book is empty afterwards — a cancelled order is gone just like a
+     fully-filled one. *)
+  Harness.print_book t Harness.aapl;
+  [%expect {|
+    === AAPL ===
+      BIDS: (empty)
+      ASKS: (empty)
+      BBO: - / -
+    |}]
+;;
+
+let%expect_test "cancel: unknown client order id is rejected" =
+  let t = Harness.create () in
+  (* Build a request but never submit it, so its id was never seen. *)
+  let never_submitted = Harness.buy ~price_cents:15000 () in
+  Harness.print_events
+    ~show:Harness.Show.no_market_data
+    (cancel t never_submitted);
+  [%expect {| CANCEL_REJECTED client_id=53 reason=order not found |}]
+;;
+
+let%expect_test "cancel: an already-filled order can no longer be cancelled" =
+  let t = Harness.create () in
+  let resting = Harness.sell ~price_cents:15000 ~participant:Harness.bob () in
+  submit_ t resting;
+  (* This buy fully fills [resting], removing it from the book. *)
+  submit_ t (Harness.buy ~price_cents:15000 ());
+  [%expect {|
+    ACCEPTED id=1 AAPL SELL 100@$150.00 DAY
+    ACCEPTED id=2 AAPL BUY 100@$150.00 DAY
+    FILL fill_id=1 AAPL $150.00 x100 aggressor=2 (client-id=55) (Alice) BUY resting=1 (client-id=54) (Bob)
+    |}];
+  (* [resting] is gone from the book, but its id is still "seen", so the
+     cancel must report not-found rather than confirming a phantom cancel. *)
+  Harness.print_events ~show:Harness.Show.no_market_data (cancel t resting);
+  [%expect {| CANCEL_REJECTED client_id=54 reason=order not found |}]
+;;
+
+let%expect_test "cancel: removing the best bid emits a BBO update" =
+  let t = Harness.create () in
+  let best = Harness.buy ~price_cents:15000 ~participant:Harness.alice () in
+  Harness.submit_quiet_ t best;
+  Harness.print_events ~show:show_bbo (cancel t best);
+  (* Cancelling the only bid leaves the book empty on that side. *)
+  [%expect {| BBO AAPL bid=- ask=- |}]
+;;
+
+let%expect_test "cancel: removing a non-best order emits no BBO update" =
+  let t = Harness.create () in
+  Harness.submit_quiet_
+    t
+    (Harness.buy ~price_cents:15000 ~participant:Harness.alice ());
+  (* A worse bid, behind the best — cancelling it must not move the BBO. *)
+  let deep = Harness.buy ~price_cents:14900 ~participant:Harness.bob () in
+  Harness.submit_quiet_ t deep;
+  let bbo_count =
+    List.count (cancel t deep) ~f:(function
+      | Exchange_event.Best_bid_offer_update _ -> true
+      | _ -> false)
+  in
+  [%test_result: int] bbo_count ~expect:0
+;;

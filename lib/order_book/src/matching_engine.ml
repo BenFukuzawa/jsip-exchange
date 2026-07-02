@@ -139,35 +139,65 @@ let submit t (request : Order.Request.t) =
       List.concat [ [ accepted ]; fill_events; post_events; bbo_events ])
 ;;
 
-let cancel t ~participant ~client_order_id =
-  let key = participant, client_order_id in
-  match Hashtbl.find t.seen_client_ids key with
+(* A cancel names an order by [(participant, client_order_id)]. By the time
+   we call this we've already found the order in [seen_client_ids] — but that
+   table retains every id for the life of the exchange (so ids can't be
+   reused), which means a fully-filled or already-cancelled order is still
+   "seen" even though it's no longer resting in [book]. Book membership is
+   therefore what distinguishes a live, cancellable order from one that's
+   already gone.
+
+   Produce the events the cancel yields:
+   - if [order] is no longer resting in [book]: a single [Cancel_reject] with
+     reason ["order not found"];
+   - otherwise: remove it from [book] and emit an [Order_cancel] (reason
+     [Participant_requested]), followed by a [Best_bid_offer_update] iff the
+     removal changed the best bid or offer (decide this the same way [submit]
+     does above). *)
+let events_for_cancel ~book ~participant ~client_order_id ~order =
+  let id = Order.order_id order in
+  match Order_book.find book id with
   | None ->
     [ Exchange_event.Cancel_reject
         { participant; client_order_id; reason = "order not found" }
     ]
   | Some order ->
-    let book = Map.find_exn t.books (Order.symbol order) in
     let bbo_before = Order_book.best_bid_offer book in
-    Order_book.remove book (Order.order_id order);
-    Hashtbl.remove t.seen_client_ids key;
-    let cancel_event =
-      Exchange_event.Order_cancel
-        { client_order_id
-        ; order_id = Order.order_id order
-        ; participant
-        ; symbol = Order.symbol order
-        ; remaining_size = Order.remaining_size order
-        ; reason = Participant_requested
-        }
+    Order_book.remove book id;
+    let cancel =
+      [ Exchange_event.Order_cancel
+          { client_order_id
+          ; order_id = id
+          ; participant
+          ; symbol = Order.symbol order
+          ; remaining_size = Order.remaining_size order
+          ; reason = Participant_requested
+          }
+      ]
     in
     let bbo_after = Order_book.best_bid_offer book in
-    (match Bbo.equal bbo_before bbo_after with
-     | false -> [ cancel_event ]
-     | true ->
-       let bbo_event =
-         Exchange_event.Best_bid_offer_update
-           { symbol = Order.symbol order; bbo = bbo_after }
-       in
-       [ cancel_event; bbo_event ])
+    let bbo_events =
+      if Bbo.equal bbo_before bbo_after
+      then []
+      else
+        [ Exchange_event.Best_bid_offer_update
+            { symbol = Order.symbol order; bbo = bbo_after }
+        ]
+    in
+    List.concat [ cancel; bbo_events ]
+;;
+
+let cancel t ~participant ~client_order_id =
+  let key = participant, client_order_id in
+  match Hashtbl.find t.seen_client_ids key with
+  | None ->
+    (* This participant never used this id, so there is nothing to cancel. We
+       deliberately do not remove ids from [seen_client_ids] on cancel
+       either: once used, an id stays reserved to prevent accidental reuse. *)
+    [ Exchange_event.Cancel_reject
+        { participant; client_order_id; reason = "order not found" }
+    ]
+  | Some order ->
+    let book = Map.find_exn t.books (Order.symbol order) in
+    events_for_cancel ~book ~participant ~client_order_id ~order
 ;;

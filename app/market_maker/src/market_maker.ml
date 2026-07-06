@@ -43,8 +43,8 @@ module Market_maker_bot = struct
 
   let state = State.create ()
 
-  (* A fresh, never-reused client order id. The exchange rejects duplicate ids
-     per participant, so the counter must only ever move forward. *)
+  (* A fresh, never-reused client order id. The exchange rejects duplicate
+     ids per participant, so the counter must only ever move forward. *)
   let fresh_client_id () =
     state.next_client_id <- state.next_client_id + 1;
     Client_order_id.of_int state.next_client_id
@@ -59,14 +59,19 @@ module Market_maker_bot = struct
      context and inventory but submits nothing.
 
      The base is the oracle's fundamental for the symbol, skewed against
-     inventory so the maker leans toward flattening its position, then widened
-     symmetrically by the half-spread plus one cent per level out. *)
+     inventory so the maker leans toward flattening its position, then
+     widened symmetrically by the half-spread plus one cent per level out. *)
   let level_prices (config : Config.t) ctx ~level =
-    ignore (Context.fundamental ctx config.symbol : Price.t);
-    ignore (inventory config.symbol : int);
-    ignore (level : int);
-    (* TODO(human) *)
-    failwith "TODO: implement Market_maker.Market_maker_bot.level_prices"
+    let fair_price =
+      Price.to_int_cents (Context.fundamental ctx config.symbol)
+    in
+    let inv = inventory config.symbol in
+    let skewed_fair =
+      fair_price - (inv * config.inventory_skew_cents_per_share)
+    in
+    let buy = skewed_fair - config.half_spread_cents - level in
+    let sell = skewed_fair + config.half_spread_cents + level in
+    buy, sell
   ;;
 
   (* Post a fresh ladder: [num_levels] bids and asks around the skewed fair
@@ -125,10 +130,10 @@ module Market_maker_bot = struct
       (match is_aggressor || is_resting with
        | false -> return ()
        | true ->
-         let our_side =
+         let our_side, our_client_id =
            if is_aggressor
-           then fill.aggressor_side
-           else Side.flip fill.aggressor_side
+           then fill.aggressor_side, fill.aggressor_client_order_id
+           else Side.flip fill.aggressor_side, fill.resting_client_order_id
          in
          let signed_size =
            match our_side with
@@ -137,10 +142,12 @@ module Market_maker_bot = struct
          in
          Hashtbl.update state.inventory fill.symbol ~f:(fun current ->
            Option.value current ~default:0 + signed_size);
+         Hash_set.remove state.resting_orders our_client_id;
          (* Re-quote: drop the stale ladder and post a fresh, skewed one. *)
          let%bind () = cancel_all_resting ctx in
          post_ladder config ctx)
     | Order_reject _ | Cancel_reject _ | Best_bid_offer_update _
-    | Trade_report _ -> return ()
+    | Trade_report _ ->
+      return ()
   ;;
 end

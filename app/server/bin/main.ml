@@ -6,8 +6,8 @@
 
     Trading activity — market makers, noise traders, and the rest of the
     ecosystem — now comes from the scenario runner
-    ([app/scenario_runner/bin/main.exe]), which logs each bot in and drives it
-    through [Jsip_bot_runtime]. This binary just brings the exchange up. *)
+    ([app/scenario_runner/bin/main.exe]), which logs each bot in and drives
+    it through [Jsip_bot_runtime]. This binary just brings the exchange up. *)
 
 open! Core
 open! Async

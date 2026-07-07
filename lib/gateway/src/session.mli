@@ -25,6 +25,11 @@ val participant : t -> Participant.t
     session. *)
 val reader : t -> Exchange_event.t Pipe.Reader.t
 
+(** Number of events sitting in the session's pipe that the client has not
+    yet read. Sampled by {!Dispatcher.pipe_occupancy} for the exchange-stats
+    feed: a queue that keeps growing marks this client as a slow consumer. *)
+val queue_length : t -> int
+
 (** Push an event onto the session's outbound pipe. *)
 val push : t -> Exchange_event.t -> unit
 

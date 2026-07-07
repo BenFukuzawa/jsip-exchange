@@ -16,6 +16,7 @@
 open! Core
 open! Async
 open Jsip_types
+open Jsip_exchange_stats
 
 type t =
   { market_data_subscribers_by_symbol :
@@ -58,6 +59,14 @@ val subscribe_audit : t -> Exchange_event.t Pipe.Reader.t
 
     Each session lookup is O(1) and independent of subscriber count. *)
 val dispatch : t -> Exchange_event.t list -> unit
+
+(** Queue length of every subscriber pipe this dispatcher writes to, grouped
+    by feed family. Sampled once per second by the exchange-stats loop in
+    {!Exchange_server}; costs O(subscribers), not O(queued events). None of
+    these pipes is bounded yet (they are written with
+    [Pipe.write_without_pushback_if_open]), so a slow consumer shows up here
+    as a queue that grows without limit. *)
+val pipe_occupancy : t -> Exchange_stats.Pipe_occupancy.t
 
 module For_testing : sig
   val audit_subscriber_count : t -> int

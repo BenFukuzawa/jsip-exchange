@@ -1,0 +1,6 @@
+(library
+ (name jsip_dashboard_view_model)
+ (public_name jsip-exchange.jsip_dashboard_view_model)
+ (libraries core jsip_types jsip_exchange_stats jsip_dashboard_protocol)
+ (preprocess
+  (pps ppx_jane)))

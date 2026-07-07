@@ -1,6 +1,7 @@
 open! Core
 open! Async
 open Jsip_types
+open Jsip_exchange_stats
 
 type t =
   { market_data_subscribers_by_symbol :
@@ -112,6 +113,23 @@ let dispatch_event t (event : Exchange_event.t) =
 (* | Cancel_reject implement the logic here *)
 
 let dispatch t events = List.iter events ~f:(dispatch_event t)
+
+let pipe_occupancy t : Exchange_stats.Pipe_occupancy.t =
+  let queue_lengths bag = Bag.to_list bag |> List.map ~f:Pipe.length in
+  let market_data =
+    Hashtbl.to_alist t.market_data_subscribers_by_symbol
+    |> List.map ~f:(fun (symbol, subscribers) ->
+      symbol, queue_lengths subscribers)
+    |> List.sort ~compare:(Comparable.lift Symbol.compare ~f:fst)
+  in
+  let sessions =
+    Hashtbl.to_alist t.active_sessions
+    |> List.map ~f:(fun (participant, session) ->
+      participant, Session.queue_length session)
+    |> List.sort ~compare:(Comparable.lift Participant.compare ~f:fst)
+  in
+  { audit_log = queue_lengths t.audit_subscribers; market_data; sessions }
+;;
 
 module For_testing = struct
   let audit_subscriber_count t = Bag.length t.audit_subscribers

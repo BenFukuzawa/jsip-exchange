@@ -10,6 +10,7 @@
 open! Core
 open! Async
 open Jsip_types
+open Jsip_exchange_stats
 
 (** Submit an order to the exchange.
 
@@ -57,3 +58,13 @@ val login_rpc : (string, Participant.t Or_error.t) Rpc.Rpc.t
 (* Informs the client when an order of their's has been executed *)
 val session_feed_rpc : (unit, Exchange_event.t, Error.t) Rpc.Pipe_rpc.t
 val cancel_order_rpc : (Client_order_id.t, unit Or_error.t) Rpc.Rpc.t
+
+(** Subscribe to per-second {!Exchange_stats.Snapshot.t}s of the server's
+    runtime health: GC state, submit/cancel handling latency, and
+    subscriber-pipe occupancy. Like {!audit_log_rpc}, this is an operator
+    tool (the [app/dashboard] web dashboard is the intended consumer), not
+    something ordinary participants should poll. Metrics stream on their own
+    RPC rather than as [Exchange_event.t]s so the audit log stays a record of
+    market activity. *)
+val exchange_stats_rpc
+  : (unit, Exchange_stats.Snapshot.t, Error.t) Rpc.Pipe_rpc.t

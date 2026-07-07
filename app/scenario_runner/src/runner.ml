@@ -6,27 +6,32 @@ module Fundamental_oracle = Jsip_fundamental.Fundamental_oracle
 module News_injector = Jsip_news_injector.News_injector
 module Bot_runtime = Jsip_bot_runtime.Bot_runtime
 
-(* Bring up one bot end-to-end: open its own RPC connection, subscribe to the
-   market-data stream for the symbols listed in the spec, and run the bot.
-   Once the session feed exists (week 2 exercise 1) this is also where each
-   bot will log in and subscribe to its session-feed RPC, so its [on_event]
-   handler can react to the matching engine's responses to its own orders and
-   to fills against its resting orders. *)
+(* Bring up one bot end-to-end: open its own RPC connection, log in as the
+   bot's participant, subscribe to its session feed (so [on_event] sees the
+   matching engine's responses to its own orders and fills against its
+   resting orders) and — for market-data consumers — to the market-data
+   stream for the symbols listed in the spec, and run the bot. *)
 let start_bot ~where_to_connect ~oracle (Bot_spec.T spec) =
   let%bind connection =
     Rpc.Connection.client where_to_connect
     >>| Result.map_error ~f:Error.of_exn
     >>| ok_exn
   in
+  let%bind login_result =
+    Rpc.Rpc.dispatch_exn
+      Rpc_protocol.login_rpc
+      connection
+      (Participant.to_string spec.participant)
+  in
+  let (_ : Participant.t) = ok_exn login_result in
   let submit request =
     Rpc.Rpc.dispatch_exn Rpc_protocol.submit_order_rpc connection request
   in
-  let cancel order_id =
-    return
-      (Or_error.error_s
-         [%message
-           "Scenario runner: cancel RPC not implemented yet"
-             (order_id : Client_order_id.t)])
+  let cancel client_order_id =
+    Rpc.Rpc.dispatch_exn
+      Rpc_protocol.cancel_order_rpc
+      connection
+      client_order_id
   in
   let bot =
     Bot_runtime.create
@@ -39,24 +44,32 @@ let start_bot ~where_to_connect ~oracle (Bot_spec.T spec) =
       ~cancel
       ~tick_interval:spec.tick_interval
   in
+  let drain_into_bot ~feed_name pipe metadata =
+    don't_wait_for
+      (let%bind () = Pipe.iter pipe ~f:(Bot_runtime.feed_event bot) in
+       match%map Rpc.Pipe_rpc.close_reason metadata with
+       | Rpc.Pipe_close_reason.Closed_locally
+       | Rpc.Pipe_close_reason.Closed_remotely ->
+         ()
+       | Rpc.Pipe_close_reason.Error err ->
+         [%log.error
+           "pipe closed with error" (feed_name : string) (err : Error.t)])
+  in
+  let%bind session_pipe, session_metadata =
+    Rpc.Pipe_rpc.dispatch_exn Rpc_protocol.session_feed_rpc connection ()
+  in
+  drain_into_bot ~feed_name:"session-feed" session_pipe session_metadata;
   let%bind () =
     match spec.is_marketdata_consumer with
     | false -> return ()
     | true ->
-      let%bind md_pipe, metadata =
+      let%bind md_pipe, md_metadata =
         Rpc.Pipe_rpc.dispatch_exn
           Rpc_protocol.market_data_rpc
           connection
           spec.symbols
       in
-      don't_wait_for
-        (let%bind () = Pipe.iter md_pipe ~f:(Bot_runtime.feed_event bot) in
-         match%map Rpc.Pipe_rpc.close_reason metadata with
-         | Rpc.Pipe_close_reason.Closed_locally
-         | Rpc.Pipe_close_reason.Closed_remotely ->
-           ()
-         | Rpc.Pipe_close_reason.Error err ->
-           [%log.error "marketdata pipe closed with error" (err : Error.t)]);
+      drain_into_bot ~feed_name:"market-data" md_pipe md_metadata;
       return ()
   in
   print_endline

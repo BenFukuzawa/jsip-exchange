@@ -1,9 +1,9 @@
 (** Tests for the dynamic market maker.
 
-    The maker is driven through [Bot_runtime] with recording [submit]/[cancel]
-    closures (the pattern from {!Jsip_bots}'s [test_bots.ml]), so we can assert
-    the exact ladder it posts and how it re-quotes on a fill without standing
-    up a real exchange. *)
+    The maker is driven through [Bot_runtime] with recording
+    [submit]/[cancel] closures (the pattern from {!Jsip_bots}'s
+    [test_bots.ml]), so we can assert the exact ladder it posts and how it
+    re-quotes on a fill without standing up a real exchange. *)
 
 open! Core
 open! Async
@@ -82,7 +82,9 @@ let print_cancels (cancelled : Client_order_id.t list ref) =
   print_s [%sexp (ids : int list)]
 ;;
 
-let%expect_test "seeds a symmetric ladder, then re-quotes skewed after a fill" =
+let%expect_test "seeds a symmetric ladder, then re-quotes skewed after a \
+                 fill"
+  =
   let config : Market_maker.Market_maker_bot.Config.t =
     { symbol = Harness.aapl
     ; half_spread_cents = 10
@@ -91,7 +93,9 @@ let%expect_test "seeds a symmetric ladder, then re-quotes skewed after a fill" =
     ; inventory_skew_cents_per_share = 1
     }
   in
-  let bot, submitted, cancelled = make_bot config ~initial_price_cents:15000 in
+  let bot, submitted, cancelled =
+    make_bot config ~initial_price_cents:15000
+  in
   let ctx = Bot_runtime.For_testing.context_of bot in
   (* Phase 1: [on_start] seeds the ladder. Inventory is zero, so the skew is
      zero and the ladder sits symmetrically around the 15000 fundamental:
@@ -115,17 +119,17 @@ let%expect_test "seeds a symmetric ladder, then re-quotes skewed after a fill" =
       ~f:(fun i (request : Order.Request.t) ->
         Bot_runtime.feed_event
           bot
-          (Order_accept
-             { order_id = Order_id.For_testing.of_int i; request }))
+          (Order_accept { order_id = Order_id.For_testing.of_int i; request }))
   in
   submitted := [];
   cancelled := [];
   (* Phase 2: a counterparty (Bob) sells into one of the maker's resting bids
-     (client id 1). The maker is the *resting* party, so it buys 100 shares and
-     goes long. Two things must happen: the filled order (1) is removed from the
-     resting set by the fill itself, so it is *not* among the subsequent cancels
-     (cancels are 2..6, not 1..6); and the re-quoted ladder is shifted down by
-     inventory * inventory_skew_cents_per_share = 100 * 1 = 100c. *)
+     (client id 1). The maker is the *resting* party, so it buys 100 shares
+     and goes long. Two things must happen: the filled order (1) is removed
+     from the resting set by the fill itself, so it is *not* among the
+     subsequent cancels (cancels are 2..6, not 1..6); and the re-quoted
+     ladder is shifted down by inventory * inventory_skew_cents_per_share =
+     100 * 1 = 100c. *)
   let fill : Fill.t =
     { fill_id = 1
     ; symbol = Harness.aapl

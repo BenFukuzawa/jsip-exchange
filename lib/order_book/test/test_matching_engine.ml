@@ -485,11 +485,13 @@ let%expect_test "cancel: resting order is removed and confirmed" =
   submit_ t order;
   [%expect {| ACCEPTED id=1 AAPL BUY 100@$150.00 DAY |}];
   Harness.print_events ~show:Harness.Show.no_market_data (cancel t order);
-  [%expect {| CANCELLED client_id=52 id=1 AAPL remaining=100 reason=PARTICIPANT_REQUESTED |}];
+  [%expect
+    {| CANCELLED client_id=52 id=1 AAPL remaining=100 reason=PARTICIPANT_REQUESTED |}];
   (* The book is empty afterwards — a cancelled order is gone just like a
      fully-filled one. *)
   Harness.print_book t Harness.aapl;
-  [%expect {|
+  [%expect
+    {|
     === AAPL ===
       BIDS: (empty)
       ASKS: (empty)
@@ -509,11 +511,14 @@ let%expect_test "cancel: unknown client order id is rejected" =
 
 let%expect_test "cancel: an already-filled order can no longer be cancelled" =
   let t = Harness.create () in
-  let resting = Harness.sell ~price_cents:15000 ~participant:Harness.bob () in
+  let resting =
+    Harness.sell ~price_cents:15000 ~participant:Harness.bob ()
+  in
   submit_ t resting;
   (* This buy fully fills [resting], removing it from the book. *)
   submit_ t (Harness.buy ~price_cents:15000 ());
-  [%expect {|
+  [%expect
+    {|
     ACCEPTED id=1 AAPL SELL 100@$150.00 DAY
     ACCEPTED id=2 AAPL BUY 100@$150.00 DAY
     FILL fill_id=1 AAPL $150.00 x100 aggressor=2 (client-id=55) (Alice) BUY resting=1 (client-id=54) (Bob)

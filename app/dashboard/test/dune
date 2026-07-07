@@ -1,0 +1,14 @@
+(library
+ (name jsip_dashboard_test)
+ (libraries
+  jsip_dashboard_view_model
+  jsip_dashboard_protocol
+  jsip_dashboard_server
+  jsip_exchange_stats
+  jsip_test_harness
+  async_rpc_kernel
+  expect_test_helpers_core
+  core)
+ (inline_tests)
+ (preprocess
+  (pps ppx_jane)))

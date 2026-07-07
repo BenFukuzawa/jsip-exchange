@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783375926106,
+  "lastUpdate": 1783458726218,
   "repoUrl": "https://github.com/BenFukuzawa/jsip-exchange",
   "entries": {
     "Order book benchmark": [
@@ -2383,6 +2383,155 @@ window.BENCHMARK_DATA = {
           {
             "name": "find_match_alloc (n=100)",
             "value": 24.89832155167977,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ben.fukuzawa@gmail.com",
+            "name": "Benjamin Fukuzawa",
+            "username": "BenFukuzawa"
+          },
+          "committer": {
+            "email": "ben.fukuzawa@gmail.com",
+            "name": "Benjamin Fukuzawa",
+            "username": "BenFukuzawa"
+          },
+          "distinct": true,
+          "id": "2b43d087baaa714d3d22ad12176dc76c93ae36ff",
+          "message": "part 3 section 2",
+          "timestamp": "2026-07-07T21:06:54Z",
+          "tree_id": "4df1e6e373e3662a3265513357f1db13fb30d763",
+          "url": "https://github.com/BenFukuzawa/jsip-exchange/commit/2b43d087baaa714d3d22ad12176dc76c93ae36ff"
+        },
+        "date": 1783458725705,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "find_match (n=10)",
+            "value": 22.3233800391342,
+            "unit": "ns"
+          },
+          {
+            "name": "find_match (n=50)",
+            "value": 24.127959728326424,
+            "unit": "ns"
+          },
+          {
+            "name": "find_match (n=100)",
+            "value": 24.232514841050417,
+            "unit": "ns"
+          },
+          {
+            "name": "find_match (n=500)",
+            "value": 26.889350457375635,
+            "unit": "ns"
+          },
+          {
+            "name": "find_match_miss (n=10)",
+            "value": 22.001462524435382,
+            "unit": "ns"
+          },
+          {
+            "name": "find_match_miss (n=50)",
+            "value": 24.154779484171193,
+            "unit": "ns"
+          },
+          {
+            "name": "find_match_miss (n=100)",
+            "value": 24.82214930495037,
+            "unit": "ns"
+          },
+          {
+            "name": "find_match_miss (n=500)",
+            "value": 27.876025709052062,
+            "unit": "ns"
+          },
+          {
+            "name": "best_bid_offer (n=10)",
+            "value": 131.26108085710467,
+            "unit": "ns"
+          },
+          {
+            "name": "best_bid_offer (n=50)",
+            "value": 497.65144040053275,
+            "unit": "ns"
+          },
+          {
+            "name": "best_bid_offer (n=100)",
+            "value": 951.7670923260714,
+            "unit": "ns"
+          },
+          {
+            "name": "best_bid_offer (n=500)",
+            "value": 4652.067447815877,
+            "unit": "ns"
+          },
+          {
+            "name": "add+remove (n=100)",
+            "value": 524.88462558063,
+            "unit": "ns"
+          },
+          {
+            "name": "submit_ioc_cross (n=10)",
+            "value": 100.99038742409446,
+            "unit": "ns"
+          },
+          {
+            "name": "submit_ioc_cross (n=50)",
+            "value": 100.78328274783833,
+            "unit": "ns"
+          },
+          {
+            "name": "submit_ioc_cross (n=100)",
+            "value": 100.70879945799841,
+            "unit": "ns"
+          },
+          {
+            "name": "submit_ioc_cross (n=500)",
+            "value": 101.00051611298446,
+            "unit": "ns"
+          },
+          {
+            "name": "submit_ioc_miss (n=10)",
+            "value": 59.87037095398809,
+            "unit": "ns"
+          },
+          {
+            "name": "submit_ioc_miss (n=50)",
+            "value": 58.80296996931805,
+            "unit": "ns"
+          },
+          {
+            "name": "submit_ioc_miss (n=100)",
+            "value": 59.78283636823716,
+            "unit": "ns"
+          },
+          {
+            "name": "submit_ioc_miss (n=500)",
+            "value": 58.81783528811345,
+            "unit": "ns"
+          },
+          {
+            "name": "submit_sweep_10_levels",
+            "value": 1095.2526859108705,
+            "unit": "ns"
+          },
+          {
+            "name": "submit_sweep_50_levels",
+            "value": 2759.343414422447,
+            "unit": "ns"
+          },
+          {
+            "name": "submit_sweep_100_levels",
+            "value": 4759.404318618595,
+            "unit": "ns"
+          },
+          {
+            "name": "find_match_alloc (n=100)",
+            "value": 26.406792217834152,
             "unit": "ns"
           }
         ]

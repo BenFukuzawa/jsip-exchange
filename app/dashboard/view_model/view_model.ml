@@ -281,7 +281,11 @@ module Latency_pane = struct
   [@@deriving sexp_of, compare, equal]
 end
 
-let span_ns span = Float.of_int (Time_ns.Span.to_int_ns span)
+(* [to_ns] (float) not [to_int_ns] (int): this runs in the js_of_ocaml
+   bundle, where [int] is 32-bit and [to_int_ns] raises on any span over
+   ~2s. [format_span_ns] already round-trips these values back through
+   [Time_ns.Span.of_ns], so nanoseconds-as-float is the chart's unit. *)
+let span_ns span = Time_ns.Span.to_ns span
 
 let latency_tooltip
   ~ops_label

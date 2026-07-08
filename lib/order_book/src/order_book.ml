@@ -145,7 +145,13 @@ let best_bid_offer t : Bbo.t =
 ;;
 
 let snapshot_side t (side : Side.t) =
-  orders_on_side t side |> List.map ~f:Level.of_order
+  orders_on_side t side
+  |> List.group ~break:(fun a b ->
+    not (Price.equal (Order.price a) (Order.price b)))
+  |> List.map ~f:(fun orders ->
+    { Level.price = Order.price (List.hd_exn orders)
+    ; size = List.sum (module Size) orders ~f:Order.remaining_size
+    })
 ;;
 
 let snapshot t =

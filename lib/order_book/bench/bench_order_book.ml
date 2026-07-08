@@ -289,22 +289,26 @@ let bench_find_match_alloc ~n =
 (* Main *)
 (* ---------------------------------------------------------------- *)
 
-let () =
+let tests =
   let sizes = [ 10; 50; 100; 500 ] in
-  let tests =
-    List.concat
-      [ (* Order book micro-benchmarks at various sizes *)
-        List.map sizes ~f:(fun n -> bench_find_match ~n)
-      ; List.map sizes ~f:(fun n -> bench_find_match_no_cross ~n)
-      ; List.map sizes ~f:(fun n -> bench_best_bid_offer ~n)
-      ; [ bench_add_remove ~n:100 ]
-      ; (* Matching engine end-to-end *)
-        List.map sizes ~f:(fun n -> bench_submit_ioc_cross ~n)
-      ; List.map sizes ~f:(fun n -> bench_submit_ioc_no_match ~n)
-      ; List.map [ 10; 50; 100 ] ~f:(fun n -> bench_submit_sweep ~n)
-      ; (* Allocation awareness *)
-        [ bench_find_match_alloc ~n:100 ]
-      ]
-  in
-  Command_unix.run (Bench.make_command tests)
+  List.concat
+    [ (* Order book micro-benchmarks at various sizes *)
+      List.map sizes ~f:(fun n -> bench_find_match ~n)
+    ; List.map sizes ~f:(fun n -> bench_find_match_no_cross ~n)
+    ; List.map sizes ~f:(fun n -> bench_best_bid_offer ~n)
+    ; [ bench_add_remove ~n:100 ]
+    ; (* Matching engine end-to-end *)
+      List.map sizes ~f:(fun n -> bench_submit_ioc_cross ~n)
+    ; List.map sizes ~f:(fun n -> bench_submit_ioc_no_match ~n)
+    ; List.map [ 10; 50; 100 ] ~f:(fun n -> bench_submit_sweep ~n)
+    ; (* Allocation awareness *)
+      [ bench_find_match_alloc ~n:100 ]
+    ]
+;;
+
+let () =
+  Command_unix.run
+    (Command.group
+       ~summary:"JSIP order-book benchmarks"
+       [ "existing", Bench.make_command tests ])
 ;;

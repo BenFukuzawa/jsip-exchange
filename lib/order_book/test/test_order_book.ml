@@ -286,3 +286,65 @@ let%expect_test "snapshot lists levels in price-time priority order" =
       BBO: $150.00 x100 / $150.05 x100
     |}]
 ;;
+
+let%expect_test "snapshot aggregates multiple participants at one price" =
+  let book = Order_book.create Harness.aapl in
+  (* Alice and Bob both rest at $150.00 -> one bid level of size 150. *)
+  Order_book.add
+    book
+    (make_order
+       ~side:Buy
+       ~price_cents:15000
+       ~order_id:1
+       ~participant:Harness.alice
+       ~size:100
+       ());
+  Order_book.add
+    book
+    (make_order
+       ~side:Buy
+       ~price_cents:15000
+       ~order_id:2
+       ~participant:Harness.bob
+       ~size:50
+       ());
+  (* A second, lower bid price with a single order -> stays its own level. *)
+  Order_book.add
+    book
+    (make_order
+       ~side:Buy
+       ~price_cents:14990
+       ~order_id:3
+       ~participant:Harness.alice
+       ~size:100
+       ());
+  (* Two participants stack one ask price too -> one ask level of size 300. *)
+  Order_book.add
+    book
+    (make_order
+       ~side:Sell
+       ~price_cents:15010
+       ~order_id:4
+       ~participant:Harness.alice
+       ~size:100
+       ());
+  Order_book.add
+    book
+    (make_order
+       ~side:Sell
+       ~price_cents:15010
+       ~order_id:5
+       ~participant:Harness.bob
+       ~size:200
+       ());
+  print_endline (Order_book.snapshot book |> Book.to_string);
+  [%expect {|
+    === AAPL ===
+      BIDS:
+        $149.90 x100
+        $150.00 x150
+      ASKS:
+        $150.10 x300
+      BBO: $150.00 x150 / $150.10 x300
+    |}]
+;;

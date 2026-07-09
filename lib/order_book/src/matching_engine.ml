@@ -13,8 +13,51 @@ module Client_key = struct
   include Hashable.Make (T)
 end
 
+(* Interns each traded symbol to a small integer id at [create] and stores the
+   books in a flat array indexed by that id. Resolving a symbol is then one
+   string hash (into [symbol_ids]) plus an O(1) array index, rather than the
+   O(log n) string comparisons a [Symbol.Map] does. The symbol set is fixed at
+   [create] and never grows, so ids are stable for the engine's life and the
+   array can be fixed-size. (This is also the interning layer Exercise 4 later
+   pushes onto the wire.) *)
+module Symbol_registry = struct
+  type t =
+    { symbol_ids : int Symbol.Table.t
+    ; books : Order_book.t array
+    }
+  [@@deriving sexp_of]
+
+  (* Assign symbol at position [id] the id [id]; [add_exn] rejects a duplicate
+     symbol, matching the old [Symbol.Map.of_alist_exn]. *)
+  let create symbols =
+    let symbol_ids = Symbol.Table.create () in
+    let books =
+      List.mapi symbols ~f:(fun id sym ->
+        Hashtbl.add_exn symbol_ids ~key:sym ~data:id;
+        Order_book.create sym)
+      |> Array.of_list
+    in
+    { symbol_ids; books }
+  ;;
+
+  (* [None] for a symbol this engine doesn't trade. *)
+  let find t symbol =
+    match Hashtbl.find t.symbol_ids symbol with
+    | None -> None
+    | Some id -> Some t.books.(id)
+  ;;
+
+  let find_exn t symbol =
+    match find t symbol with
+    | Some book -> book
+    | None ->
+      raise_s
+        [%message "Symbol_registry.find_exn: unknown symbol" (symbol : Symbol.t)]
+  ;;
+end
+
 type t =
-  { books : Order_book.t Symbol.Map.t
+  { registry : Symbol_registry.t
   ; order_id_gen : Order_id.Generator.t
   ; mutable next_fill_id : int
   ; seen_client_ids : Order.t Client_key.Table.t
@@ -22,18 +65,14 @@ type t =
 [@@deriving sexp_of]
 
 let create symbols =
-  let books =
-    List.map symbols ~f:(fun sym -> sym, Order_book.create sym)
-    |> Symbol.Map.of_alist_exn
-  in
-  { books
+  { registry = Symbol_registry.create symbols
   ; order_id_gen = Order_id.Generator.create ()
   ; next_fill_id = 1
   ; seen_client_ids = Client_key.Table.create ()
   }
 ;;
 
-let book t symbol = Map.find t.books symbol
+let book t symbol = Symbol_registry.find t.registry symbol
 
 (** Run the matching loop: repeatedly find a compatible resting order and
     fill against it. Returns the list of Fill and Trade_report events
@@ -88,7 +127,7 @@ let submit t (request : Order.Request.t) =
         { request; reason = "duplicate client order id" }
     ]
   else (
-    match Map.find t.books request.symbol with
+    match Symbol_registry.find t.registry request.symbol with
     | None ->
       [ Exchange_event.Order_reject { request; reason = "unknown symbol" } ]
     | Some book ->
@@ -198,6 +237,6 @@ let cancel t ~participant ~client_order_id =
         { participant; client_order_id; reason = "order not found" }
     ]
   | Some order ->
-    let book = Map.find_exn t.books (Order.symbol order) in
+    let book = Symbol_registry.find_exn t.registry (Order.symbol order) in
     events_for_cancel ~book ~participant ~client_order_id ~order
 ;;

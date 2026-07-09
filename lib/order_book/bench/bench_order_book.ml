@@ -44,6 +44,7 @@ open Jsip_order_book
 let aapl = Symbol.of_string "AAPL"
 let alice = Participant.of_string "Alice"
 let bob = Participant.of_string "Bob"
+let sizes = [ 10; 50; 100; 500; 5000; 10000 ]
 
 (** Build a book with [n] resting sell orders at prices 1..n (in cents). This
     gives a realistic spread of prices for benchmarking find_match and
@@ -67,6 +68,31 @@ let book_with_n_asks ?(min_price = 10_000) n =
     Order_book.add book order
   done;
   book, gen
+;;
+
+(** Build a book with [n] resting sells ALL stacked at one price ($150.00).
+    Unlike {!book_with_n_asks} (every order at a distinct price), every order
+    rests at the *same* level, so [snapshot] must aggregate all [n] into a
+    single [Level.t] -- the case Ex 1's aggregation exists for. *)
+let book_with_n_asks_same_price ?(price_cents = 15_000) n =
+  let book = Order_book.create aapl in
+  let gen = Order_id.Generator.create () in
+  for _ = 1 to n do
+    let order =
+      Order.create
+        { client_order_id = Client_order_id.of_int 0
+        ; symbol = aapl
+        ; participant = bob
+        ; side = Sell
+        ; price = Price.of_int_cents price_cents
+        ; size = Size.of_int 100
+        ; time_in_force = Day
+        }
+        ~order_id:(Order_id.Generator.next gen)
+    in
+    Order_book.add book order
+  done;
+  book
 ;;
 
 (** Build a matching engine with [n] resting sells on AAPL. *)
@@ -159,6 +185,13 @@ let bench_add_remove ~n =
   Bench.Test.create ~name:[%string "add+remove (n=%{n#Int})"] (fun () ->
     Order_book.add book order;
     Order_book.remove book oid)
+;;
+
+let bench_snapshot ~n =
+  (* Fixture built ONCE outside the thunk; we time only [snapshot]. *)
+  let book = book_with_n_asks_same_price n in
+  Bench.Test.create ~name:[%string "snapshot (n=%{n#Int})"] (fun () ->
+    ignore (Order_book.snapshot book : Book.t))
 ;;
 
 (* ---------------------------------------------------------------- *)
@@ -290,7 +323,6 @@ let bench_find_match_alloc ~n =
 (* ---------------------------------------------------------------- *)
 
 let tests =
-  let sizes = [ 10; 50; 100; 500 ] in
   List.concat
     [ (* Order book micro-benchmarks at various sizes *)
       List.map sizes ~f:(fun n -> bench_find_match ~n)
@@ -310,5 +342,9 @@ let () =
   Command_unix.run
     (Command.group
        ~summary:"JSIP order-book benchmarks"
-       [ "existing", Bench.make_command tests ])
+       [ "existing", Bench.make_command tests
+       ; ( "snapshot"
+         , Bench.make_command
+             (List.map sizes ~f:(fun n -> bench_snapshot ~n)) )
+       ])
 ;;

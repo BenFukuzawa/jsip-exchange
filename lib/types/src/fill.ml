@@ -2,7 +2,7 @@ open! Core
 
 type t =
   { fill_id : int
-  ; symbol : Symbol.t
+  ; symbol : Symbol_id.t
   ; price : Price.t
   ; size : Size.t
   ; aggressor_order_id : Order_id.t
@@ -34,7 +34,7 @@ let to_string
     "fill_id=%d %s %s x%d aggressor=%s (client-id=%d) (%s) %s resting=%s \
      (client-id=%d) (%s)"
     fill_id
-    (Symbol.to_string symbol)
+    (Symbol_id.to_string symbol)
     (Price.to_string_dollar price)
     (Size.to_int size)
     (Order_id.to_string aggressor_order_id)
@@ -67,13 +67,13 @@ let to_participant_view t participant =
         (sprintf
            "You bought %d %s at %s"
            (Size.to_int t.size)
-           (Symbol.to_string t.symbol)
+           (Symbol_id.to_string t.symbol)
            (Price.to_string_dollar t.price))
     | Sell ->
       Some
         (sprintf
            "You sold %d %s at %s"
            (Size.to_int t.size)
-           (Symbol.to_string t.symbol)
+           (Symbol_id.to_string t.symbol)
            (Price.to_string_dollar t.price)))
 ;;

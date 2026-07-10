@@ -22,7 +22,8 @@ type t =
   { market_data_subscribers_by_symbol :
       Exchange_event.t Pipe.Writer.t Bag.t Symbol.Table.t
   ; audit_subscribers : Exchange_event.t Pipe.Writer.t Bag.t
-  ; active_sessions : Session.t Participant.Table.t
+  ; active_sessions : Session.t Participant_id.Table.t
+  ; registry : Participant_registry.t
   }
 
 (** Create a dispatcher.
@@ -31,7 +32,7 @@ type t =
     and [Fill] events) are currently handed to a stub [push_to_session] that
     prints them on stdout, prefixed with the target participant. Wiring this
     up to real [Session] outbound pipes is a week-2 exercise. *)
-val create : unit -> t
+val create : Participant_registry.t -> t
 
 (** Subscribe to public market data for one or more [symbols]. The same pipe
     receives events for every requested symbol; the dispatcher avoids

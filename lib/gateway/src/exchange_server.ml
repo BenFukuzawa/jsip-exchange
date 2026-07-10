@@ -102,7 +102,8 @@ let start_stats_loop ~dispatcher ~collector ~stats_subscribers ~stop =
 
 let start ~symbols ~port () =
   let engine = Matching_engine.create symbols in
-  let dispatcher = Dispatcher.create () in
+  let registry = Participant_registry.create () in
+  let dispatcher = Dispatcher.create registry in
   let collector = Exchange_stats.Collector.create () in
   let stats_subscribers = Bag.create () in
   let request_reader, request_writer = Pipe.create () in
@@ -122,7 +123,11 @@ let start ~symbols ~port () =
                  |> return
                in
                let participant = Participant.of_string name in
-               if Hashtbl.mem dispatcher.active_sessions participant
+               if Hashtbl.mem
+                    dispatcher.active_sessions
+                    (Participant_registry.intern
+                       dispatcher.registry
+                       participant)
                then
                  return
                    (Or_error.error_string
@@ -132,7 +137,11 @@ let start ~symbols ~port () =
                    Dispatcher.set_up_session dispatcher participant
                  in
                  let session =
-                   Hashtbl.find_exn dispatcher.active_sessions participant
+                   Hashtbl.find_exn
+                     dispatcher.active_sessions
+                     (Participant_registry.intern
+                        dispatcher.registry
+                        participant)
                  in
                  state.session <- Some session;
                  Ok participant))

@@ -7,13 +7,15 @@ type t =
   { market_data_subscribers_by_symbol :
       Exchange_event.t Pipe.Writer.t Bag.t Symbol.Table.t
   ; audit_subscribers : Exchange_event.t Pipe.Writer.t Bag.t
-  ; active_sessions : Session.t Participant.Table.t
+  ; active_sessions : Session.t Participant_id.Table.t
+  ; registry : Participant_registry.t
   }
 
-let create () =
+let create registry =
   { market_data_subscribers_by_symbol = Symbol.Table.create ()
   ; audit_subscribers = Bag.create ()
-  ; active_sessions = Participant.Table.create ()
+  ; active_sessions = Participant_id.Table.create ()
+  ; registry
   }
 ;;
 
@@ -68,7 +70,8 @@ let push_to_session t participant event =
   (* TODO: Once sessions have been implemented this function should write the
      event to the appropriate session's pipe. For now we have the server
      binary print these events to stdout while tests can silence them. *)
-  let session = Hashtbl.find t.active_sessions participant in
+  let id = Participant_registry.intern t.registry participant in
+  let session = Hashtbl.find t.active_sessions id in
   match session with None -> () | Some user -> Session.push user event
 ;;
 
@@ -124,8 +127,8 @@ let pipe_occupancy t : Exchange_stats.Pipe_occupancy.t =
   in
   let sessions =
     Hashtbl.to_alist t.active_sessions
-    |> List.map ~f:(fun (participant, session) ->
-      participant, Session.queue_length session)
+    |> List.map ~f:(fun (id, session) ->
+      Participant_registry.name t.registry id, Session.queue_length session)
     |> List.sort ~compare:(Comparable.lift Participant.compare ~f:fst)
   in
   { audit_log = queue_lengths t.audit_subscribers; market_data; sessions }
@@ -137,17 +140,20 @@ end
 
 let clean_up_session t session =
   Session.close session;
-  Hashtbl.remove t.active_sessions (Session.participant session);
+  Hashtbl.remove
+    t.active_sessions
+    (Participant_registry.intern t.registry (Session.participant session));
   Deferred.unit
 ;;
 
 let set_up_session t participant =
+  let id = Participant_registry.intern t.registry participant in
   let%bind () =
-    match Hashtbl.find t.active_sessions participant with
+    match Hashtbl.find t.active_sessions id with
     | None -> Deferred.unit
     | Some existing -> clean_up_session t existing
   in
   let session = Session.create participant in
-  Hashtbl.set t.active_sessions ~key:participant ~data:session;
+  Hashtbl.set t.active_sessions ~key:id ~data:session;
   Deferred.unit
 ;;

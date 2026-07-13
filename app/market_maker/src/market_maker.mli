@@ -22,6 +22,10 @@ module Market_maker_bot : sig
   module Config : sig
     type t =
       { symbol : Symbol.t
+      (** The symbol name, used to read the (name-keyed) fundamental oracle. *)
+      ; symbol_id : Symbol_id.t
+      (** The wire id of the same symbol, used on orders and to key
+          inventory. Must identify the same instrument as [symbol]. *)
       ; half_spread_cents : int
       (** Half-spread in cents around the (skewed) fair value. *)
       ; size_per_level : int (** Shares posted at each price level. *)

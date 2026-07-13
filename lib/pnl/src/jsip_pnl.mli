@@ -87,7 +87,7 @@ module Totals : sig
 end
 
 type summary =
-  { per_symbol : (Symbol.t * Symbol_summary.t) list
+  { per_symbol : (Symbol_id.t * Symbol_summary.t) list
   (** One entry per symbol the participant has traded, in symbol order. *)
   ; totals : Totals.t (** Summed across all symbols. *)
   }

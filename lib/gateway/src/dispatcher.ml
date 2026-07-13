@@ -5,14 +5,14 @@ open Jsip_exchange_stats
 
 type t =
   { market_data_subscribers_by_symbol :
-      Exchange_event.t Pipe.Writer.t Bag.t Symbol.Table.t
+      Exchange_event.t Pipe.Writer.t Bag.t Symbol_id.Table.t
   ; audit_subscribers : Exchange_event.t Pipe.Writer.t Bag.t
   ; active_sessions : Session.t Participant_id.Table.t
   ; registry : Participant_registry.t
   }
 
 let create registry =
-  { market_data_subscribers_by_symbol = Symbol.Table.create ()
+  { market_data_subscribers_by_symbol = Symbol_id.Table.create ()
   ; audit_subscribers = Bag.create ()
   ; active_sessions = Participant_id.Table.create ()
   ; registry
@@ -123,7 +123,7 @@ let pipe_occupancy t : Exchange_stats.Pipe_occupancy.t =
     Hashtbl.to_alist t.market_data_subscribers_by_symbol
     |> List.map ~f:(fun (symbol, subscribers) ->
       symbol, queue_lengths subscribers)
-    |> List.sort ~compare:(Comparable.lift Symbol.compare ~f:fst)
+    |> List.sort ~compare:(Comparable.lift Symbol_id.compare ~f:fst)
   in
   let sessions =
     Hashtbl.to_alist t.active_sessions

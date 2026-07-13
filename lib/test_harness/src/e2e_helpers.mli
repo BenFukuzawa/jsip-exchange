@@ -34,4 +34,4 @@ val connection : client -> Rpc.Connection.t
 val rpc_submit : client -> Order.Request.t -> unit Deferred.t
 
 (** Query the book via RPC. *)
-val rpc_book : client -> Symbol.t -> Book.t option Deferred.t
+val rpc_book : client -> Symbol_id.t -> Book.t option Deferred.t

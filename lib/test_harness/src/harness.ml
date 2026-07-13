@@ -8,6 +8,13 @@ open Jsip_gateway
 let aapl = Symbol.of_string "AAPL"
 let tsla = Symbol.of_string "TSLA"
 let goog = Symbol.of_string "GOOG"
+
+(* Symbol ids match each name's position in the default [create] list, since
+   [Matching_engine.create] assigns ids by list order. Phase 1 has no
+   directory, so tests refer to symbols by these raw ids. *)
+let aapl_id = Symbol_id.of_int 0
+let tsla_id = Symbol_id.of_int 1
+let goog_id = Symbol_id.of_int 2
 let alice = Participant.of_string "Alice"
 let bob = Participant.of_string "Bob"
 let charlie = Participant.of_string "Charlie"
@@ -37,7 +44,7 @@ let make_request
   ~side
   ~price_cents
   ?(size = 100)
-  ?(symbol = aapl)
+  ?(symbol = aapl_id)
   ?(participant = alice)
   ?(time_in_force = Time_in_force.Day)
   ()
@@ -104,7 +111,7 @@ let submit_quiet t request = Matching_engine.submit (engine t) request
 let sample_events : Exchange_event.t list =
   let order_request : Order.Request.t =
     { client_order_id = fresh_client_id ()
-    ; symbol = aapl
+    ; symbol = aapl_id
     ; participant = alice
     ; side = Buy
     ; price = Price.of_int_cents 15000
@@ -116,7 +123,7 @@ let sample_events : Exchange_event.t list =
       { order_id = Order_id.For_testing.of_int 1; request = order_request }
   ; Fill
       { fill_id = 1
-      ; symbol = aapl
+      ; symbol = aapl_id
       ; price = Price.of_int_cents 15000
       ; size = Size.of_int 100
       ; aggressor_order_id = Order_id.For_testing.of_int 2
@@ -131,13 +138,13 @@ let sample_events : Exchange_event.t list =
       { client_order_id = Client_order_id.of_int 2
       ; order_id = Order_id.For_testing.of_int 1
       ; participant = alice
-      ; symbol = aapl
+      ; symbol = aapl_id
       ; remaining_size = Size.of_int 50
       ; reason = Ioc_remainder
       }
   ; Order_reject { request = order_request; reason = "unknown symbol" }
   ; Best_bid_offer_update
-      { symbol = aapl
+      { symbol = aapl_id
       ; bbo =
           { bid =
               Some
@@ -148,7 +155,7 @@ let sample_events : Exchange_event.t list =
           }
       }
   ; Trade_report
-      { symbol = aapl
+      { symbol = aapl_id
       ; price = Price.of_int_cents 15000
       ; size = Size.of_int 100
       }
@@ -161,14 +168,14 @@ let submit_quiet_ t request =
 
 let print_book t symbol =
   match Matching_engine.book t.engine symbol with
-  | None -> print_endline [%string "unknown symbol %{symbol#Symbol}"]
+  | None -> print_endline [%string "unknown symbol %{symbol#Symbol_id}"]
   | Some book -> Order_book.snapshot book |> Book.to_string |> print_endline
 ;;
 
 let print_bbo t symbol =
   match Matching_engine.book t.engine symbol with
-  | None -> print_endline [%string "BBO %{symbol#Symbol}: unknown symbol"]
+  | None -> print_endline [%string "BBO %{symbol#Symbol_id}: unknown symbol"]
   | Some book ->
     let bbo = Order_book.best_bid_offer book |> Bbo.to_string in
-    print_endline [%string "BBO %{symbol#Symbol}: %{bbo}"]
+    print_endline [%string "BBO %{symbol#Symbol_id}: %{bbo}"]
 ;;

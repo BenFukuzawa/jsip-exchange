@@ -52,7 +52,10 @@ let num_book_fillers = 4
    [Config.next_client_id] is mutable: each spec gets its own fresh counter. *)
 let book_filler_spec ~index : Bot_spec.t =
   let config : Jsip_bots.Book_filler.Config.t =
-    { symbols
+    { symbols =
+        (* Pair each symbol name with its wire id: the id is the symbol's
+           position in the exchange's [symbols] universe. *)
+        List.mapi symbols ~f:(fun id symbol -> symbol, Symbol_id.of_int id)
     ; orders_per_tick = 50
     ; order_size = 100
     ; min_offset = 100

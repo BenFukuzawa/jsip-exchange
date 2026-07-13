@@ -376,7 +376,7 @@ let occupancy_pane (occupancy : Exchange_stats.Pipe_occupancy.t)
   let market_data =
     List.concat_map occupancy.market_data ~f:(fun (symbol, lengths) ->
       List.mapi lengths ~f:(fun i length ->
-        [%string "%{symbol#Symbol} #%{i + 1#Int}"], "MKT DATA", length))
+        [%string "%{symbol#Symbol_id} #%{i + 1#Int}"], "MKT DATA", length))
   in
   let sessions =
     List.map occupancy.sessions ~f:(fun (participant, length) ->

@@ -13,6 +13,6 @@ let%expect_test "recent-samples RPC" =
   [%expect
     {|
     (Rpc (query 86ba5df747eec837f0b391dd49f33f9e)
-     (response 4ec881cbb99d3d7241cace2e4196fa10))
+     (response a1ed81189a610dd97cbd9ad3a1b0e91f))
     |}]
 ;;

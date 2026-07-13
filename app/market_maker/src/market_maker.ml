@@ -8,6 +8,10 @@ module Market_maker_bot = struct
   module Config = struct
     type t =
       { symbol : Symbol.t
+      (** The symbol name, used to read the (name-keyed) fundamental oracle. *)
+      ; symbol_id : Symbol_id.t
+      (** The wire id of the same symbol, used on orders and to key
+          inventory. Must identify the same instrument as [symbol]. *)
       ; half_spread_cents : int
       (** Half-spread in cents around the (skewed) fair value. *)
       ; size_per_level : int (** Shares posted at each price level. *)
@@ -28,13 +32,13 @@ module Market_maker_bot = struct
      which is all our scenarios need. *)
   module State = struct
     type t =
-      { inventory : int Symbol.Table.t
+      { inventory : int Symbol_id.Table.t
       ; resting_orders : Client_order_id.Hash_set.t
       ; mutable next_client_id : int
       }
 
     let create () =
-      { inventory = Symbol.Table.create ()
+      { inventory = Symbol_id.Table.create ()
       ; resting_orders = Hash_set.create (module Client_order_id)
       ; next_client_id = 0
       }
@@ -65,7 +69,7 @@ module Market_maker_bot = struct
     let fair_price =
       Price.to_int_cents (Context.fundamental ctx config.symbol)
     in
-    let inv = inventory config.symbol in
+    let inv = inventory config.symbol_id in
     let skewed_fair =
       fair_price - (inv * config.inventory_skew_cents_per_share)
     in
@@ -86,7 +90,7 @@ module Market_maker_bot = struct
         let submit side price_cents =
           let request : Order.Request.t =
             { client_order_id = fresh_client_id ()
-            ; symbol = config.symbol
+            ; symbol = config.symbol_id
             ; participant = Context.participant ctx
             ; side
             ; price = Price.of_int_cents price_cents

@@ -2,7 +2,7 @@
 
     Owns subscription registries:
 
-    - **Market-data subscribers**, keyed by [Symbol.t]. Each subscriber gets
+    - **Market-data subscribers**, keyed by [Symbol_id.t]. Each subscriber gets
       a pipe of [Best_bid_offer_update] and [Trade_report] events for the
       symbol they asked about. This is the public market-data feed.
 
@@ -20,7 +20,7 @@ open Jsip_exchange_stats
 
 type t =
   { market_data_subscribers_by_symbol :
-      Exchange_event.t Pipe.Writer.t Bag.t Symbol.Table.t
+      Exchange_event.t Pipe.Writer.t Bag.t Symbol_id.Table.t
   ; audit_subscribers : Exchange_event.t Pipe.Writer.t Bag.t
   ; active_sessions : Session.t Participant_id.Table.t
   ; registry : Participant_registry.t
@@ -41,7 +41,7 @@ val create : Participant_registry.t -> t
     closed. *)
 val subscribe_market_data
   :  t
-  -> Symbol.t list
+  -> Symbol_id.t list
   -> Exchange_event.t Pipe.Reader.t
 
 (** Subscribe to the full unfiltered event firehose. Intended for the monitor

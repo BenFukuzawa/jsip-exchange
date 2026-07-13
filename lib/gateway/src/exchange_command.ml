@@ -13,8 +13,8 @@ end
 
 type t =
   | Submit of Order.Request.t
-  | Book of Symbol.t
-  | Subscribe of Symbol.t
+  | Book of Symbol_id.t
+  | Subscribe of Symbol_id.t
 [@@deriving sexp_of]
 
 (* Default participant when no "as <name>" is specified in the command.
@@ -22,6 +22,18 @@ type t =
    caller-supplied default. *)
 
 let default_p = Participant.of_string "anonymous"
+
+(* Parse a human-typed symbol token into a [Symbol_id.t]. Phase 1 of Exercise
+   4 has no symbol directory, so a human types the raw integer id (e.g.
+   [BOOK 0]); this is the parse edge where that text becomes a typed wire id. *)
+let parse_symbol_id symbol_str =
+  let id = Int.of_string_opt symbol_str in
+  match id with
+  | Some x -> Ok (Symbol_id.of_int x)
+  | None ->
+    Or_error.error_string
+      [%string "invalid symbol id: %{symbol_str} (expected an integer)"]
+;;
 
 let parse ?default_participant input =
   let open Result.Let_syntax in
@@ -81,15 +93,7 @@ let parse ?default_participant input =
           Or_error.error_string
             [%string "invalid price: %{price_str}\nexception: %{exn_str}"]
       in
-      let%bind symbol =
-        try Ok (Symbol.of_string symbol_str) with
-        | exn ->
-          let exn_str = Exn.to_string exn in
-          Or_error.error_s
-            [%message
-              [%string
-                "invalid symbol: %{symbol_str}\nexception: %{exn_str}"]]
-      in
+      let%bind symbol = parse_symbol_id symbol_str in
       let%bind time_in_force, rest =
         match rest with
         | [] -> Ok (Time_in_force.Day, [])
@@ -133,7 +137,7 @@ let parse ?default_participant input =
        | [] ->
          Or_error.error_s [%message "expected: BOOK|SUBSCRIBE <symbol>"]
        | symbol_str :: _ ->
-         let symbol = Symbol.of_string (String.uppercase symbol_str) in
+         let%bind symbol = parse_symbol_id symbol_str in
          (match first_word with
           | Book -> Ok (Book symbol)
           | Subscribe -> Ok (Subscribe symbol)

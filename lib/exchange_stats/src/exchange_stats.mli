@@ -68,7 +68,7 @@ module Pipe_occupancy : sig
       keyed by participant so a dashboard can name the offender. *)
   type t =
     { audit_log : int list (** one queue length per audit subscriber *)
-    ; market_data : (Symbol.t * int list) list
+    ; market_data : (Symbol_id.t * int list) list
     (** per symbol, one queue length per subscriber to that symbol. A
         subscriber registered for several symbols is counted under each, so
         summing across symbols over-counts such subscribers. *)

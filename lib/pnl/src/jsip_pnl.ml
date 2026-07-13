@@ -21,13 +21,13 @@ module Position = struct
 end
 
 type t =
-  { positions : Position.t Symbol.Map.t Participant.Map.t
-  ; reference_prices : Price.t Symbol.Map.t
+  { positions : Position.t Symbol_id.Map.t Participant.Map.t
+  ; reference_prices : Price.t Symbol_id.Map.t
   }
 [@@deriving sexp_of]
 
 let empty =
-  { positions = Participant.Map.empty; reference_prices = Symbol.Map.empty }
+  { positions = Participant.Map.empty; reference_prices = Symbol_id.Map.empty }
 ;;
 
 (** Fold a single signed fill ([qty] > 0 for a buy, < 0 for a sell) into a
@@ -77,7 +77,7 @@ let apply_signed_fill (position : Position.t) ~qty ~price_cents : Position.t =
 let update_position t ~participant ~symbol ~f =
   let symbol_map =
     Map.find t.positions participant
-    |> Option.value ~default:Symbol.Map.empty
+    |> Option.value ~default:Symbol_id.Map.empty
   in
   let position =
     Map.find symbol_map symbol |> Option.value ~default:Position.empty
@@ -147,7 +147,7 @@ module Totals = struct
 end
 
 type summary =
-  { per_symbol : (Symbol.t * Symbol_summary.t) list
+  { per_symbol : (Symbol_id.t * Symbol_summary.t) list
   ; totals : Totals.t
   }
 [@@deriving sexp_of]
@@ -178,7 +178,7 @@ let symbol_summary t ~(position : Position.t) ~symbol : Symbol_summary.t =
 let summary t participant =
   let symbol_map =
     Map.find t.positions participant
-    |> Option.value ~default:Symbol.Map.empty
+    |> Option.value ~default:Symbol_id.Map.empty
   in
   let per_symbol =
     Map.to_alist symbol_map

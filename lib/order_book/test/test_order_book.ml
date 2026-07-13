@@ -14,7 +14,7 @@ let make_order
   =
   Order.create
     ({ client_order_id
-     ; symbol = Harness.aapl
+     ; symbol = Harness.aapl_id
      ; participant
      ; side
      ; price = Price.of_int_cents price_cents
@@ -28,7 +28,7 @@ let make_order
 (* --- add / find / remove --- *)
 
 let%expect_test "add and find an order" =
-  let book = Order_book.create Harness.aapl in
+  let book = Order_book.create Harness.aapl_id in
   let order = make_order ~side:Buy ~price_cents:15000 ~order_id:1 () in
   Order_book.add book order;
   [%test_result: Order.t option]
@@ -37,14 +37,14 @@ let%expect_test "add and find an order" =
 ;;
 
 let%expect_test "find returns None for unknown order" =
-  let book = Order_book.create Harness.aapl in
+  let book = Order_book.create Harness.aapl_id in
   [%test_result: _ option]
     (Order_book.find book (Order_id.For_testing.of_int 1))
     ~expect:None
 ;;
 
 let%expect_test "remove an order" =
-  let book = Order_book.create Harness.aapl in
+  let book = Order_book.create Harness.aapl_id in
   let order = make_order ~side:Sell ~price_cents:15100 ~order_id:1 () in
   Order_book.add book order;
   [%test_result: int] (Order_book.count book Sell) ~expect:1;
@@ -57,7 +57,7 @@ let%expect_test "remove an order" =
 ;;
 
 let%expect_test "remove returns None for unknown order" =
-  let book = Order_book.create Harness.aapl in
+  let book = Order_book.create Harness.aapl_id in
   [%test_result: _ option]
     (Order_book.For_testing.remove book (Order_id.For_testing.of_int 1))
     ~expect:None
@@ -66,12 +66,12 @@ let%expect_test "remove returns None for unknown order" =
 (* --- is_empty / count --- *)
 
 let%expect_test "is_empty on fresh book" =
-  let book = Order_book.create Harness.aapl in
+  let book = Order_book.create Harness.aapl_id in
   [%test_result: bool] (Order_book.is_empty book) ~expect:true
 ;;
 
 let%expect_test "count tracks orders on each side independently" =
-  let book = Order_book.create Harness.aapl in
+  let book = Order_book.create Harness.aapl_id in
   Order_book.add
     book
     (make_order ~side:Buy ~price_cents:15000 ~order_id:1 ());
@@ -89,7 +89,7 @@ let%expect_test "count tracks orders on each side independently" =
 (* --- orders_on_side --- *)
 
 let%expect_test "orders_on_side returns all orders on a side" =
-  let book = Order_book.create Harness.aapl in
+  let book = Order_book.create Harness.aapl_id in
   Order_book.add
     book
     (make_order ~side:Buy ~price_cents:15000 ~order_id:1 ());
@@ -126,13 +126,13 @@ let%expect_test "orders_on_side returns all orders on a side" =
 (* --- find_match --- *)
 
 let%expect_test "find_match returns None for empty book" =
-  let book = Order_book.create Harness.aapl in
+  let book = Order_book.create Harness.aapl_id in
   let order = make_order ~side:Buy ~price_cents:15000 ~order_id:1 () in
   [%test_result: _ option] (Order_book.find_match book order) ~expect:None
 ;;
 
 let%expect_test "find_match finds a tradable resting order" =
-  let book = Order_book.create Harness.aapl in
+  let book = Order_book.create Harness.aapl_id in
   let resting = make_order ~side:Sell ~price_cents:15000 ~order_id:1 () in
   Order_book.add book resting;
   let incoming = make_order ~side:Buy ~price_cents:15000 ~order_id:2 () in
@@ -143,7 +143,7 @@ let%expect_test "find_match finds a tradable resting order" =
 ;;
 
 let%expect_test "find_match returns None when prices don't cross" =
-  let book = Order_book.create Harness.aapl in
+  let book = Order_book.create Harness.aapl_id in
   Order_book.add
     book
     (make_order ~side:Sell ~price_cents:15100 ~order_id:1 ());
@@ -152,7 +152,7 @@ let%expect_test "find_match returns None when prices don't cross" =
 ;;
 
 let%expect_test "find_match: buy matches against asks, not bids" =
-  let book = Order_book.create Harness.aapl in
+  let book = Order_book.create Harness.aapl_id in
   Order_book.add
     book
     (make_order ~side:Buy ~price_cents:15000 ~order_id:1 ());
@@ -168,7 +168,7 @@ let%expect_test "find_match: buy matches against asks, not bids" =
 (* --- best_bid_offer --- *)
 
 let%expect_test "best_bid_offer: highest bid, lowest ask" =
-  let book = Order_book.create Harness.aapl in
+  let book = Order_book.create Harness.aapl_id in
   let high_bid = 15050 in
   let low_ask = 15100 in
   Order_book.add
@@ -193,12 +193,12 @@ let%expect_test "best_bid_offer: highest bid, lowest ask" =
 ;;
 
 let%expect_test "best_bid_offer: empty book" =
-  let book = Order_book.create Harness.aapl in
+  let book = Order_book.create Harness.aapl_id in
   [%test_result: Bbo.t] (Order_book.best_bid_offer book) ~expect:Bbo.empty
 ;;
 
 let%expect_test "best_bid_offer: aggregates size at best level" =
-  let book = Order_book.create Harness.aapl in
+  let book = Order_book.create Harness.aapl_id in
   let size1 = 50 in
   let size2 = 75 in
   Order_book.add
@@ -221,7 +221,7 @@ let%expect_test "best_bid_offer: aggregates size at best level" =
 ;;
 
 let%expect_test "best_bid_offer: tracks changes as orders are added" =
-  let book = Order_book.create Harness.aapl in
+  let book = Order_book.create Harness.aapl_id in
   let buy_price = 14990 in
   let sell_price = 15010 in
   let print_bbo () =
@@ -248,7 +248,7 @@ let%expect_test "best_bid_offer: tracks changes as orders are added" =
 (* --- snapshot --- *)
 
 let%expect_test "snapshot lists levels in price-time priority order" =
-  let book = Order_book.create Harness.aapl in
+  let book = Order_book.create Harness.aapl_id in
   (* Add bids and asks at varying prices, deliberately out of price order. *)
   Order_book.add
     book
@@ -274,7 +274,7 @@ let%expect_test "snapshot lists levels in price-time priority order" =
      bids should appear highest-first and asks lowest-first. *)
   [%expect
     {|
-    === AAPL ===
+    === 0 ===
       BIDS:
         $149.90 x100
         $149.95 x100
@@ -288,7 +288,7 @@ let%expect_test "snapshot lists levels in price-time priority order" =
 ;;
 
 let%expect_test "snapshot aggregates multiple participants at one price" =
-  let book = Order_book.create Harness.aapl in
+  let book = Order_book.create Harness.aapl_id in
   (* Alice and Bob both rest at $150.00 -> one bid level of size 150. *)
   Order_book.add
     book
@@ -339,7 +339,7 @@ let%expect_test "snapshot aggregates multiple participants at one price" =
        ());
   print_endline (Order_book.snapshot book |> Book.to_string);
   [%expect {|
-    === AAPL ===
+    === 0 ===
       BIDS:
         $149.90 x100
         $150.00 x150

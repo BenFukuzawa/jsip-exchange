@@ -50,7 +50,10 @@ let read_delay = Time_ns.Span.of_sec 60.0
    supplies the market-data volume the consumers choke on. *)
 let book_filler_spec () : Bot_spec.t =
   let config : Jsip_bots.Book_filler.Config.t =
-    { symbols
+    { symbols =
+        (* Pair each symbol name with its wire id: the id is the symbol's
+           position in the exchange's [symbols] universe. *)
+        List.mapi symbols ~f:(fun id symbol -> symbol, Symbol_id.of_int id)
     ; orders_per_tick = 50
     ; order_size = 100
     ; min_offset = 5

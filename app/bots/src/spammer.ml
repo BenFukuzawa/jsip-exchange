@@ -5,7 +5,7 @@ open Jsip_bot_runtime
 
 module Config = struct
   type t =
-    { symbols : Symbol.t list
+    { symbols : (Symbol.t * Symbol_id.t) list
     ; orders_per_tick : int
     ; order_size : int
     ; passive_offset_cents : int
@@ -92,9 +92,9 @@ let on_tick (config : Config.t) (ctx : Bot_runtime.Context.t) =
      trader. *)
   let participant = Bot_runtime.Context.participant ctx in
   let burst =
-    List.concat_map config.symbols ~f:(fun symbol ->
+    List.concat_map config.symbols ~f:(fun (symbol_name, symbol) ->
       let price =
-        passive_price config (Bot_runtime.Context.fundamental ctx symbol)
+        passive_price config (Bot_runtime.Context.fundamental ctx symbol_name)
       in
       List.init config.orders_per_tick ~f:(fun (_ : int) ->
         let client_order_id = fresh_client_order_id config in

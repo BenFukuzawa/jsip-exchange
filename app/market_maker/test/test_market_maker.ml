@@ -87,6 +87,7 @@ let%expect_test "seeds a symmetric ladder, then re-quotes skewed after a \
   =
   let config : Market_maker.Market_maker_bot.Config.t =
     { symbol = Harness.aapl
+    ; symbol_id = Harness.aapl_id
     ; half_spread_cents = 10
     ; size_per_level = 100
     ; num_levels = 3
@@ -132,7 +133,7 @@ let%expect_test "seeds a symmetric ladder, then re-quotes skewed after a \
      100 * 1 = 100c. *)
   let fill : Fill.t =
     { fill_id = 1
-    ; symbol = Harness.aapl
+    ; symbol = Harness.aapl_id
     ; price = Price.of_int_cents 15000
     ; size = Size.of_int 100
     ; aggressor_order_id = Order_id.For_testing.of_int 100

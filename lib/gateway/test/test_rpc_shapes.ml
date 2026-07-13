@@ -29,7 +29,7 @@ let%expect_test "submit-order RPC" =
        : Async_rpc_kernel.Rpc_shapes.t)];
   [%expect
     {|
-    (Rpc (query 2051f8c479fc8afcb143e431719fbb7b)
+    (Rpc (query 5d3aac26f7a93abb4673df09d8c2a244)
      (response 27f76252e5181aab209cd62aa6e42268))
     |}];
   return ()
@@ -42,8 +42,8 @@ let%expect_test "book-query RPC" =
        : Async_rpc_kernel.Rpc_shapes.t)];
   [%expect
     {|
-    (Rpc (query d9a8da25d5656b016fb4dbdc2e4197fb)
-     (response 9bf9d93dd466a19cac18ecff7cd287af))
+    (Rpc (query 698cfa4093fe5e51523842d37b92aeac)
+     (response 69122cea75d1c08088ac96792b33f39f))
     |}];
   return ()
 ;;
@@ -55,9 +55,9 @@ let%expect_test "market-data RPC" =
        : Async_rpc_kernel.Rpc_shapes.t)];
   [%expect
     {|
-    (Streaming_rpc (query 296be80010ace497614f92952e5510c4)
+    (Streaming_rpc (query 4cd553520709511864846bda25c448d0)
      (initial_response 86ba5df747eec837f0b391dd49f33f9e)
-     (update_response 5d79a81fc85a04b9297e9abc6b3216f6)
+     (update_response 52ddfdafd8b60af7ed70cae493d4dc1f)
      (error 52966f4a49a77bfdff668e9cc61511b3))
     |}];
   return ()
@@ -72,7 +72,7 @@ let%expect_test "audit-log RPC" =
     {|
     (Streaming_rpc (query 86ba5df747eec837f0b391dd49f33f9e)
      (initial_response 86ba5df747eec837f0b391dd49f33f9e)
-     (update_response 5d79a81fc85a04b9297e9abc6b3216f6)
+     (update_response 52ddfdafd8b60af7ed70cae493d4dc1f)
      (error 52966f4a49a77bfdff668e9cc61511b3))
     |}];
   return ()
@@ -99,7 +99,7 @@ let%expect_test "exchange-stats RPC" =
     {|
     (Streaming_rpc (query 86ba5df747eec837f0b391dd49f33f9e)
      (initial_response 86ba5df747eec837f0b391dd49f33f9e)
-     (update_response b5f7632a70e1fe4d37627f0e76d474ac)
+     (update_response f134f57e8e566e47a3e2ea4bd04c5336)
      (error 52966f4a49a77bfdff668e9cc61511b3))
     |}];
   return ()
@@ -114,7 +114,7 @@ let%expect_test "Session feed RPC" =
     {|
     (Streaming_rpc (query 86ba5df747eec837f0b391dd49f33f9e)
      (initial_response 86ba5df747eec837f0b391dd49f33f9e)
-     (update_response 5d79a81fc85a04b9297e9abc6b3216f6)
+     (update_response 52ddfdafd8b60af7ed70cae493d4dc1f)
      (error 52966f4a49a77bfdff668e9cc61511b3))
     |}];
   return ()

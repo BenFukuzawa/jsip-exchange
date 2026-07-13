@@ -76,7 +76,7 @@ market-data feed.|}];
           in
           (match result with
            | None ->
-             print_endline [%string "No book available for %{symbol#Symbol}"]
+             print_endline [%string "No book available for %{symbol#Symbol_id}"]
            | Some result -> print_endline (Book.to_string result));
           loop ()
         | Ok (Subscribe symbol) ->
@@ -95,7 +95,7 @@ market-data feed.|}];
              print_endline
                [%string
                  {|
-Subscribed to %{symbol#Symbol} market data. Updates will appear below.
+Subscribed to %{symbol#Symbol_id} market data. Updates will appear below.
 Continue entering commands as normal.|}];
              (* Read market data in the background; the command loop
                 continues running concurrently. *)

@@ -28,7 +28,7 @@ let show_symbol (symbol, (s : Jsip_pnl.Symbol_summary.t)) =
   let price = function None -> "-" | Some p -> Price.to_string_dollar p in
   printf
     "  %s  inv=%d avg=%s ref=%s realized=%dc unrealized=%dc\n"
-    (Symbol.to_string symbol)
+    (Symbol_id.to_string symbol)
     s.inventory
     (price s.average_entry_price)
     (price s.reference_price)
@@ -60,24 +60,24 @@ let%expect_test "opening fill + trade print marks both sides" =
          ~aggressor:H.alice
          ~aggressor_side:Side.Buy
          ~resting:H.bob
-         ~symbol:H.aapl
+         ~symbol:H.aapl_id
          ~price_cents:15000
          ~size:100)
   in
   let pnl =
     Jsip_pnl.apply_trade_report
       pnl
-      (trade_print ~symbol:H.aapl ~price_cents:15100)
+      (trade_print ~symbol:H.aapl_id ~price_cents:15100)
   in
   show pnl H.alice;
   show pnl H.bob;
   [%expect
     {|
     Alice:
-      AAPL  inv=100 avg=$150.00 ref=$151.00 realized=0c unrealized=10000c
+      0  inv=100 avg=$150.00 ref=$151.00 realized=0c unrealized=10000c
       total realized=0c unrealized=10000c net=10000c
     Bob:
-      AAPL  inv=-100 avg=$150.00 ref=$151.00 realized=0c unrealized=-10000c
+      0  inv=-100 avg=$150.00 ref=$151.00 realized=0c unrealized=-10000c
       total realized=0c unrealized=-10000c net=-10000c
     |}]
 ;;
@@ -96,7 +96,7 @@ let%expect_test "partial close realizes P&L" =
          ~aggressor:H.alice
          ~aggressor_side:Side.Buy
          ~resting:H.bob
-         ~symbol:H.aapl
+         ~symbol:H.aapl_id
          ~price_cents:15000
          ~size:100)
   in
@@ -107,24 +107,24 @@ let%expect_test "partial close realizes P&L" =
          ~aggressor:H.alice
          ~aggressor_side:Side.Sell
          ~resting:H.bob
-         ~symbol:H.aapl
+         ~symbol:H.aapl_id
          ~price_cents:15200
          ~size:60)
   in
   let pnl =
     Jsip_pnl.apply_trade_report
       pnl
-      (trade_print ~symbol:H.aapl ~price_cents:15200)
+      (trade_print ~symbol:H.aapl_id ~price_cents:15200)
   in
   show pnl H.alice;
   show pnl H.bob;
   [%expect
     {|
     Alice:
-      AAPL  inv=40 avg=$150.00 ref=$152.00 realized=12000c unrealized=8000c
+      0  inv=40 avg=$150.00 ref=$152.00 realized=12000c unrealized=8000c
       total realized=12000c unrealized=8000c net=20000c
     Bob:
-      AAPL  inv=-40 avg=$150.00 ref=$152.00 realized=-12000c unrealized=-8000c
+      0  inv=-40 avg=$150.00 ref=$152.00 realized=-12000c unrealized=-8000c
       total realized=-12000c unrealized=-8000c net=-20000c
     |}]
 ;;
@@ -143,7 +143,7 @@ let%expect_test "selling through zero flips the position" =
          ~aggressor:H.alice
          ~aggressor_side:Side.Buy
          ~resting:H.bob
-         ~symbol:H.aapl
+         ~symbol:H.aapl_id
          ~price_cents:15000
          ~size:100)
   in
@@ -154,7 +154,7 @@ let%expect_test "selling through zero flips the position" =
          ~aggressor:H.alice
          ~aggressor_side:Side.Sell
          ~resting:H.bob
-         ~symbol:H.aapl
+         ~symbol:H.aapl_id
          ~price_cents:15200
          ~size:60)
   in
@@ -165,20 +165,20 @@ let%expect_test "selling through zero flips the position" =
          ~aggressor:H.alice
          ~aggressor_side:Side.Sell
          ~resting:H.bob
-         ~symbol:H.aapl
+         ~symbol:H.aapl_id
          ~price_cents:15300
          ~size:60)
   in
   let pnl =
     Jsip_pnl.apply_trade_report
       pnl
-      (trade_print ~symbol:H.aapl ~price_cents:15300)
+      (trade_print ~symbol:H.aapl_id ~price_cents:15300)
   in
   show pnl H.alice;
   [%expect
     {|
     Alice:
-      AAPL  inv=-20 avg=$153.00 ref=$153.00 realized=24000c unrealized=0c
+      0  inv=-20 avg=$153.00 ref=$153.00 realized=24000c unrealized=0c
       total realized=24000c unrealized=0c net=24000c
     |}]
 ;;

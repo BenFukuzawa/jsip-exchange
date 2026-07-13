@@ -39,7 +39,7 @@ let format_event = function
     sprintf
       "ACCEPTED id=%s %s %s %d@%s %s"
       (Order_id.to_string order_id)
-      (Symbol.to_string request.symbol)
+      (Symbol_id.to_string request.symbol)
       (Side.to_string request.side)
       (Size.to_int request.size)
       (Price.to_string_dollar request.price)
@@ -57,13 +57,13 @@ let format_event = function
       "CANCELLED client_id=%d id=%s %s remaining=%d reason=%s"
       (Client_order_id.to_int client_order_id)
       (Order_id.to_string order_id)
-      (Symbol.to_string symbol)
+      (Symbol_id.to_string symbol)
       (Size.to_int remaining_size)
       (Cancel_reason.to_string reason)
   | Order_reject { request; reason } ->
     sprintf
       "REJECTED %s %s %d@%s reason=%s"
-      (Symbol.to_string request.symbol)
+      (Symbol_id.to_string request.symbol)
       (Side.to_string request.side)
       (Size.to_int request.size)
       (Price.to_string_dollar request.price)
@@ -71,10 +71,10 @@ let format_event = function
   | Best_bid_offer_update { symbol; bbo } ->
     let bid = Level.opt_to_string bbo.bid in
     let ask = Level.opt_to_string bbo.ask in
-    [%string "BBO %{symbol#Symbol} bid=%{bid} ask=%{ask}"]
+    [%string "BBO %{symbol#Symbol_id} bid=%{bid} ask=%{ask}"]
   | Trade_report { symbol; price; size } ->
     let size = Size.to_int size in
-    [%string "TRADE %{symbol#Symbol} %{price#Price} x%{size#Int}"]
+    [%string "TRADE %{symbol#Symbol_id} %{price#Price} x%{size#Int}"]
   | Cancel_reject { participant = _; client_order_id; reason } ->
     let client_id = Client_order_id.to_int client_order_id in
     [%string "CANCEL_REJECTED client_id=%{client_id#Int} reason=%{reason}"]

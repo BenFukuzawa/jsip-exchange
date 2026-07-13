@@ -36,7 +36,7 @@ let%expect_test "two samples: p50 is the lower one (nearest rank)" =
 let%expect_test "pipe-occupancy total sums every family" =
   let occupancy =
     { Pipe_occupancy.audit_log = [ 3; 0 ]
-    ; market_data = [ Harness.aapl, [ 5; 2 ]; Harness.tsla, [ 1 ] ]
+    ; market_data = [ Harness.aapl_id, [ 5; 2 ]; Harness.tsla_id, [ 1 ] ]
     ; sessions = [ Harness.alice, 4; Harness.bob, 0 ]
     }
   in

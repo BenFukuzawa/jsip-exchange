@@ -41,7 +41,12 @@ open Jsip_order_book
 (* Setup helpers *)
 (* ---------------------------------------------------------------- *)
 
-let aapl = Symbol.of_string "AAPL"
+(* The single symbol this benchmark trades. [aapl_name] builds the exchange's
+   symbol universe; [aapl] is its wire id (position 0 in that universe) and is
+   what rides on books, orders, and fills. *)
+let aapl_name = Symbol.of_string "AAPL"
+
+let aapl = Symbol_id.of_int 0
 let alice = Participant.of_string "Alice"
 let bob = Participant.of_string "Bob"
 let sizes = [ 10; 50; 100; 500; 5000; 10000 ]
@@ -97,7 +102,7 @@ let book_with_n_asks_same_price ?(price_cents = 15_000) n =
 
 (** Build a matching engine with [n] resting sells on AAPL. *)
 let engine_with_n_asks ?(min_price = 10_000) n =
-  let engine = Matching_engine.create [ aapl ] in
+  let engine = Matching_engine.create [ aapl_name ] in
   for i = 1 to n do
     ignore
       (Matching_engine.submit

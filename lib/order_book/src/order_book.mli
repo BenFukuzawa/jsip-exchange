@@ -10,11 +10,13 @@ open Jsip_types
 
 type t [@@deriving sexp_of]
 
-(** Create an empty order book for a given symbol. *)
-val create : Symbol.t -> t
+(** Create an empty order book for a given symbol id. As of Exercise 4 a book
+    is identified by its wire-visible {!Jsip_types.Symbol_id.t}, not its name;
+    the name lives only in the client-side directory. *)
+val create : Symbol_id.t -> t
 
-(** The symbol this book is for. *)
-val symbol : t -> Symbol.t
+(** The symbol id this book is for. *)
+val symbol : t -> Symbol_id.t
 
 (** {2 Order management} *)
 

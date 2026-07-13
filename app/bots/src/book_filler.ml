@@ -5,7 +5,7 @@ open Jsip_bot_runtime
 
 module Config = struct
   type t =
-    { symbols : Symbol.t list
+    { symbols : (Symbol.t * Symbol_id.t) list
     ; orders_per_tick : int
     ; order_size : int
     ; min_offset : int
@@ -55,8 +55,10 @@ let on_tick (config : Config.t) (context : Bot_runtime.Context.t)
   Deferred.List.iter
     ~how:(`Max_concurrent_jobs max_concurrent_submits)
     config.symbols
-    ~f:(fun symbol ->
-      let fair_price = Bot_runtime.Context.fundamental context symbol in
+    ~f:(fun (symbol_name, symbol) ->
+      let fair_price =
+        Bot_runtime.Context.fundamental context symbol_name
+      in
       Deferred.List.iter
         ~how:(`Max_concurrent_jobs max_concurrent_submits)
         (List.init config.orders_per_tick ~f:Fn.id)

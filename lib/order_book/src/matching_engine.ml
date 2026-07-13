@@ -13,46 +13,44 @@ module Client_key = struct
   include Hashable.Make (T)
 end
 
-(* Interns each traded symbol to a small integer id at [create] and stores the
-   books in a flat array indexed by that id. Resolving a symbol is then one
-   string hash (into [symbol_ids]) plus an O(1) array index, rather than the
-   O(log n) string comparisons a [Symbol.Map] does. The symbol set is fixed at
-   [create] and never grows, so ids are stable for the engine's life and the
-   array can be fixed-size. (This is also the interning layer Exercise 4 later
-   pushes onto the wire.) *)
+(* Stores the books in a flat array indexed by [Symbol_id.t]. As of Exercise
+   4 the id arrives already-interned on the wire, so there is no string table
+   and no hashing here: resolving a symbol is a bounds check plus an O(1)
+   array index. The symbol set is fixed at [create] and never grows, so ids
+   are stable for the engine's life and the array can be fixed-size. *)
 module Symbol_registry = struct
-  type t =
-    { symbol_ids : int Symbol.Table.t
-    ; books : Order_book.t array
-    }
-  [@@deriving sexp_of]
+  type t = { books : Order_book.t array } [@@deriving sexp_of]
 
-  (* Assign symbol at position [id] the id [id]; [add_exn] rejects a duplicate
-     symbol, matching the old [Symbol.Map.of_alist_exn]. *)
+  (* The book at array position [id] is the book for [Symbol_id.t] [id]. The
+     list order defines the id<->name correspondence; [main] builds the
+     symbol directory from the same list so clients can recover names. *)
   let create symbols =
-    let symbol_ids = Symbol.Table.create () in
     let books =
-      List.mapi symbols ~f:(fun id sym ->
-        Hashtbl.add_exn symbol_ids ~key:sym ~data:id;
-        Order_book.create sym)
+      List.mapi symbols ~f:(fun id _sym ->
+        Order_book.create (Symbol_id.of_int id))
       |> Array.of_list
     in
-    { symbol_ids; books }
+    { books }
   ;;
 
-  (* [None] for a symbol this engine doesn't trade. *)
-  let find t symbol =
-    match Hashtbl.find t.symbol_ids symbol with
-    | None -> None
-    | Some id -> Some t.books.(id)
+  (* Validate a wire-supplied [Symbol_id.t] and resolve it to its book. The
+     id comes straight off the wire, so it is NOT trusted - reject anything
+     out of range. No string hashing happens anymore: the id is the array
+     index. *)
+  let find t (id : Symbol_id.t) =
+    let index = Symbol_id.to_int id in
+    match index >= 0 && index < Array.length t.books with
+    | false -> None
+    | true -> Some t.books.(index)
   ;;
 
-  let find_exn t symbol =
-    match find t symbol with
+  let find_exn t id =
+    match find t id with
     | Some book -> book
     | None ->
       raise_s
-        [%message "Symbol_registry.find_exn: unknown symbol" (symbol : Symbol.t)]
+        [%message
+          "Symbol_registry.find_exn: unknown symbol" (id : Symbol_id.t)]
   ;;
 end
 

@@ -36,7 +36,9 @@ let%expect_test "participant view" =
      }
      : Fill.t)
   in
-  let res = Some "You bought 100 AAPL at $150.25" in
+  (* Phase 1: [lib/types] is int-only, so the participant view renders the
+     symbol as its raw id (0). Phase 2's directory is what restores "AAPL". *)
+  let res = Some "You bought 100 0 at $150.25" in
   [%test_result: string option]
     (Fill.to_participant_view fill (Participant.of_string "Alice"))
     ~expect:res

@@ -5,6 +5,7 @@ open Jsip_fundamental
 open Jsip_bot_runtime
 
 let aapl = Symbol.of_string "AAPL"
+let aapl_id = Symbol_id.of_int 0
 let alice = Participant.of_string "Alice"
 let bob = Participant.of_string "Bob"
 
@@ -57,7 +58,7 @@ let make_recording_bot ~participant =
 
 let bbo_event : Exchange_event.t =
   Best_bid_offer_update
-    { symbol = aapl
+    { symbol = aapl_id
     ; bbo =
         { bid =
             Some { price = Price.of_int_cents 14990; size = Size.of_int 100 }
@@ -70,7 +71,7 @@ let bbo_event : Exchange_event.t =
 let fill_event : Exchange_event.t =
   Fill
     { fill_id = 1
-    ; symbol = aapl
+    ; symbol = aapl_id
     ; price = Price.of_int_cents 15000
     ; size = Size.of_int 50
     ; aggressor_order_id = Order_id.For_testing.of_int 1
@@ -88,7 +89,7 @@ let accepted_event : Exchange_event.t =
     { order_id = Order_id.For_testing.of_int 1
     ; request =
         { client_order_id = Client_order_id.of_int 0
-        ; symbol = aapl
+        ; symbol = aapl_id
         ; participant = alice
         ; side = Buy
         ; price = Price.of_int_cents 15000
@@ -114,17 +115,17 @@ let%expect_test "feed_event forwards every event verbatim to on_event" =
   print_observed observed;
   [%expect
     {|
-    ((Best_bid_offer_update (symbol AAPL)
+    ((Best_bid_offer_update (symbol 0)
       (bbo
        ((bid (((price 14990) (size 100)))) (ask (((price 15010) (size 200)))))))
      (Fill
-      ((fill_id 1) (symbol AAPL) (price 15000) (size 50) (aggressor_order_id 1)
+      ((fill_id 1) (symbol 0) (price 15000) (size 50) (aggressor_order_id 1)
        (aggressor_client_order_id 1) (aggressor_participant Alice)
        (aggressor_side Buy) (resting_order_id 2) (resting_client_order_id 2)
        (resting_participant Bob)))
      (Order_accept (order_id 1)
       (request
-       ((client_order_id 0) (symbol AAPL) (participant Alice) (side Buy)
+       ((client_order_id 0) (symbol 0) (participant Alice) (side Buy)
         (price 15000) (size 10) (time_in_force Day)))))
     |}];
   return ()

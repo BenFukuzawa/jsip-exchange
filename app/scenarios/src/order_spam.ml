@@ -54,7 +54,7 @@ let oracle_config : Jsip_fundamental.Fundamental_oracle.Config.t =
    All instances share the same intensity. *)
 let spammer_spec ~index : Bot_spec.t =
   let config : Spammer.Config.t =
-    { symbols = [ symbol ]
+    { symbols = [ symbol, Symbol_id.of_int 0 ]
     ; orders_per_tick
     ; order_size
     ; passive_offset_cents

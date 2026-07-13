@@ -26,9 +26,9 @@ val submit : t -> Order.Request.t -> Exchange_event.t list
 
 (** {2 Queries} *)
 
-(** The order book for a given symbol, or [None] if the symbol is not traded
-    on this engine. *)
-val book : t -> Symbol.t -> Order_book.t option
+(** The order book for a given symbol id, or [None] if the id is not traded on
+    this engine (including an out-of-range id from an untrusted client). *)
+val book : t -> Symbol_id.t -> Order_book.t option
 
 val cancel
   :  t

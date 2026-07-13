@@ -26,9 +26,11 @@ open Jsip_bot_runtime
 
 module Config : sig
   type t =
-    { symbols : Symbol.t list
-    (** Symbols the burst is spread across; each tick fires [orders_per_tick]
-        orders for every symbol in this list. *)
+    { symbols : (Symbol.t * Symbol_id.t) list
+    (** Symbols the burst is spread across, each as a [(name, id)] pair: the
+        name reads the (name-keyed) fundamental oracle, the id rides on the
+        orders. Each tick fires [orders_per_tick] orders for every symbol in
+        this list. *)
     ; orders_per_tick : int
     (** Burst size, per symbol, per tick. This is the intensity knob and the
         whole point of the bot — a scenario dials the pathology up or down

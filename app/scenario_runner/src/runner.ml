@@ -11,7 +11,7 @@ module Bot_runtime = Jsip_bot_runtime.Bot_runtime
    matching engine's responses to its own orders and fills against its
    resting orders) and — for market-data consumers — to the market-data
    stream for the symbols listed in the spec, and run the bot. *)
-let start_bot ~where_to_connect ~oracle (Bot_spec.T spec) =
+let start_bot ~where_to_connect ~oracle ~symbol_id_by_name (Bot_spec.T spec) =
   let%bind connection =
     Rpc.Connection.client where_to_connect
     >>| Result.map_error ~f:Error.of_exn
@@ -63,11 +63,14 @@ let start_bot ~where_to_connect ~oracle (Bot_spec.T spec) =
     match spec.is_marketdata_consumer with
     | false -> return ()
     | true ->
+      let symbol_ids =
+        List.map spec.symbols ~f:(Map.find_exn symbol_id_by_name)
+      in
       let%bind md_pipe, md_metadata =
         Rpc.Pipe_rpc.dispatch_exn
           Rpc_protocol.market_data_rpc
           connection
-          spec.symbols
+          symbol_ids
       in
       drain_into_bot ~feed_name:"market-data" md_pipe md_metadata;
       return ()
@@ -88,6 +91,14 @@ let run (config : Scenario_config.t) ~port ~seed =
     Tcp.Where_to_connect.of_host_and_port
       { Host_and_port.host = "localhost"; port }
   in
+  (* A symbol's wire id is its position in the exchange's symbol list. Bots
+     name the symbols they want market data for; resolve those names to ids
+     the same way the matching engine does. *)
+  let symbol_id_by_name =
+    List.mapi config.symbols ~f:(fun id symbol ->
+      symbol, Symbol_id.of_int id)
+    |> Symbol.Map.of_alist_exn
+  in
   let oracle = Fundamental_oracle.create config.oracle_config ~seed in
   let injector = News_injector.create oracle config.news in
   (* Background tasks. *)
@@ -97,7 +108,7 @@ let run (config : Scenario_config.t) ~port ~seed =
     Deferred.List.iter
       ~how:`Parallel
       config.bots
-      ~f:(start_bot ~where_to_connect ~oracle)
+      ~f:(start_bot ~where_to_connect ~oracle ~symbol_id_by_name)
   in
   Exchange_server.close_finished server
 ;;

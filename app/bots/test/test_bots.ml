@@ -8,6 +8,7 @@ open Jsip_bot_runtime
 open! Jsip_bots
 
 let aapl = Symbol.of_string "AAPL"
+let aapl_id = Symbol_id.of_int 0
 let alice = Participant.of_string "Alice"
 
 let oracle_config ~initial_price_cents =
@@ -61,7 +62,7 @@ let print_submitted (submitted : Order.Request.t list ref) =
   let recent = List.rev !submitted in
   List.iter recent ~f:(fun req ->
     printf
-      !"%{Side} %{Symbol} %d@%{Price#dollar} %{Time_in_force}\n"
+      !"%{Side} %{Symbol_id} %d@%{Price#dollar} %{Time_in_force}\n"
       req.side
       req.symbol
       (Size.to_int req.size)
@@ -94,7 +95,7 @@ let%expect_test "make_recording_bot wires up a runnable bot" =
          { order_id = Order_id.For_testing.of_int 1
          ; request =
              { client_order_id = Client_order_id.of_int 0
-             ; symbol = aapl
+             ; symbol = aapl_id
              ; participant = alice
              ; side = Buy
              ; price = Price.of_int_cents 15000

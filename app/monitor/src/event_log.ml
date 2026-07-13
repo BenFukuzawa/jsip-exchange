@@ -82,8 +82,8 @@ module Filter = struct
     | Substring s -> String.Caseless.is_substring line ~substring:s
   ;;
 
-  let matches t event =
-    let line = Event_formatter.format_event event in
+  let matches ?directory t event =
+    let line = Event_formatter.format_event ?directory event in
     List.for_all t ~f:(predicate_matches event line)
   ;;
 end
@@ -94,9 +94,14 @@ type t =
   ; (* Ordered by first appearance — newest symbol last. Reorganising on
        every BBO would be visually noisy. *)
     bbos_rev : (Symbol_id.t * Bbo.t) list
+  ; (* The symbol directory used to render events as ticker names. [None]
+       keeps the wire-id rendering (the default in tests). *)
+    directory : Symbol_directory.t option
   }
 
-let create () = { events_rev = []; filter = Filter.all; bbos_rev = [] }
+let create ?directory () =
+  { events_rev = []; filter = Filter.all; bbos_rev = []; directory }
+;;
 
 let update_bbos bbos_rev symbol bbo =
   let found, updated =
@@ -124,14 +129,19 @@ let set_filter t filter = { t with filter }
 let filter t = t.filter
 
 let visible_events t =
-  List.rev_filter t.events_rev ~f:(Filter.matches t.filter)
+  List.rev_filter
+    t.events_rev
+    ~f:(Filter.matches ?directory:t.directory t.filter)
 ;;
 
 let visible_lines t =
-  List.map (visible_events t) ~f:Event_formatter.format_event
+  List.map
+    (visible_events t)
+    ~f:(Event_formatter.format_event ?directory:t.directory)
 ;;
 
 let visible_styled_lines t =
   List.map (visible_events t) ~f:(fun event ->
-    Color.of_event event, Event_formatter.format_event event)
+    ( Color.of_event event
+    , Event_formatter.format_event ?directory:t.directory event ))
 ;;

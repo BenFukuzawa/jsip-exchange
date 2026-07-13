@@ -33,5 +33,12 @@ val notional_cents : t -> int
 (** Formats a fill from the perspective of a given participant, if fill does
     not involve a given participant it returns `None`
 
-    Does not expose the inputted client_order_id. *)
-val to_participant_view : t -> Participant.t -> string option
+    Does not expose the inputted client_order_id.
+
+    The symbol is rendered as its wire {!Symbol_id.t} by default; pass
+    [?directory] to render the human ticker name instead (Exercise 4). *)
+val to_participant_view
+  :  ?directory:Symbol_directory.t
+  -> t
+  -> Participant.t
+  -> string option

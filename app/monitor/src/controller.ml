@@ -45,8 +45,8 @@ type t =
   ; should_exit : bool
   }
 
-let create () =
-  { log = Event_log.create ()
+let create ?directory () =
+  { log = Event_log.create ?directory ()
   ; enabled_categories = Event_log.Category.all
   ; committed_substring = ""
   ; mode = Browsing

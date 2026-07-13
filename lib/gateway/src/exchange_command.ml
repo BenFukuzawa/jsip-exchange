@@ -23,19 +23,23 @@ type t =
 
 let default_p = Participant.of_string "anonymous"
 
-(* Parse a human-typed symbol token into a [Symbol_id.t]. Phase 1 of Exercise
-   4 has no symbol directory, so a human types the raw integer id (e.g.
-   [BOOK 0]); this is the parse edge where that text becomes a typed wire id. *)
-let parse_symbol_id symbol_str =
-  let id = Int.of_string_opt symbol_str in
-  match id with
-  | Some x -> Ok (Symbol_id.of_int x)
-  | None ->
-    Or_error.error_string
-      [%string "invalid symbol id: %{symbol_str} (expected an integer)"]
+(* Parse a human-typed ticker token into a [Symbol_id.t]. This is the parse
+   edge: a human types a name like [AAPL], and the [directory] resolves it to
+   the integer wire id the server speaks. Phase 1 of Exercise 4 had humans
+   type the raw id; Phase 2 restores names by threading the directory here. *)
+let parse_symbol directory symbol_str =
+  match
+    Or_error.try_with (fun () ->
+      Symbol.of_string (String.uppercase symbol_str))
+  with
+  | Error _ -> Or_error.error_string [%string "invalid symbol: %{symbol_str}"]
+  | Ok name ->
+    (match Symbol_directory.id_of_name directory name with
+     | Some id -> Ok id
+     | None -> Or_error.error_string [%string "unknown symbol: %{symbol_str}"])
 ;;
 
-let parse ?default_participant input =
+let parse ?default_participant ~directory input =
   let open Result.Let_syntax in
   let input = String.strip input in
   if String.is_empty input
@@ -93,7 +97,7 @@ let parse ?default_participant input =
           Or_error.error_string
             [%string "invalid price: %{price_str}\nexception: %{exn_str}"]
       in
-      let%bind symbol = parse_symbol_id symbol_str in
+      let%bind symbol = parse_symbol directory symbol_str in
       let%bind time_in_force, rest =
         match rest with
         | [] -> Ok (Time_in_force.Day, [])
@@ -137,7 +141,7 @@ let parse ?default_participant input =
        | [] ->
          Or_error.error_s [%message "expected: BOOK|SUBSCRIBE <symbol>"]
        | symbol_str :: _ ->
-         let%bind symbol = parse_symbol_id symbol_str in
+         let%bind symbol = parse_symbol directory symbol_str in
          (match first_word with
           | Book -> Ok (Book symbol)
           | Subscribe -> Ok (Subscribe symbol)

@@ -36,8 +36,14 @@ open Jsip_types
    identity. *) val parse_command_with_default_participant : string ->
    default:Participant.t -> (Order.Request.t, string) Result.t *)
 
-(** Format an exchange event as a single line of human-readable text. *)
-val format_event : Exchange_event.t -> string
+(** Format an exchange event as a single line of human-readable text. Symbols
+    render as their wire {!Jsip_types.Symbol_id.t} by default; pass
+    [?directory] to render human ticker names instead (Exercise 4). *)
+val format_event : ?directory:Symbol_directory.t -> Exchange_event.t -> string
 
-(** Format a list of events, one per line. *)
-val format_events : Exchange_event.t list -> string
+(** Format a list of events, one per line. See {!format_event} for
+    [?directory]. *)
+val format_events
+  :  ?directory:Symbol_directory.t
+  -> Exchange_event.t list
+  -> string

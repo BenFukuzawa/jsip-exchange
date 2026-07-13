@@ -48,7 +48,19 @@ let to_string
 
 let notional_cents t = Price.to_int_cents t.price * Size.to_int t.size
 
-let to_participant_view t participant =
+(* Render a wire [Symbol_id.t] for display. With no [directory] we keep the
+   id (Exercise 4 Phase 1 behavior); with one, we show the ticker name,
+   falling back to the id if the directory doesn't know it. *)
+let symbol_to_display ?directory symbol =
+  match directory with
+  | None -> Symbol_id.to_string symbol
+  | Some d ->
+    Symbol_directory.name_of_id d symbol
+    |> Option.map ~f:Symbol.to_string
+    |> Option.value ~default:(Symbol_id.to_string symbol)
+;;
+
+let to_participant_view ?directory t participant =
   if Participant.( <> ) t.aggressor_participant participant
      && Participant.( <> ) t.resting_participant participant
   then None
@@ -61,19 +73,20 @@ let to_participant_view t participant =
          | Side.Buy -> Side.Sell
          | Side.Sell -> Side.Buy)
     in
+    let symbol = symbol_to_display ?directory t.symbol in
     match side with
     | Buy ->
       Some
         (sprintf
            "You bought %d %s at %s"
            (Size.to_int t.size)
-           (Symbol_id.to_string t.symbol)
+           symbol
            (Price.to_string_dollar t.price))
     | Sell ->
       Some
         (sprintf
            "You sold %d %s at %s"
            (Size.to_int t.size)
-           (Symbol_id.to_string t.symbol)
+           symbol
            (Price.to_string_dollar t.price)))
 ;;

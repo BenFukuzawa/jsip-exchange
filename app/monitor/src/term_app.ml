@@ -112,15 +112,27 @@ let scroll_indicator_view ~stuck_to_bottom =
 
 let bbo_value_attr = Attr.fg Attr.Color.Expert.lightcyan
 
-let render_bbo_row (symbol, bbo) =
+(* Render a wire [Symbol_id.t] for display: id by default, ticker name when a
+   [directory] is supplied (Exercise 4), falling back to the id if unknown. *)
+let symbol_to_display ?directory symbol =
+  match directory with
+  | None -> Symbol_id.to_string symbol
+  | Some d ->
+    Symbol_directory.name_of_id d symbol
+    |> Option.map ~f:Symbol.to_string
+    |> Option.value ~default:(Symbol_id.to_string symbol)
+;;
+
+let render_bbo_row ?directory (symbol, bbo) =
   let bbo_str = Bbo.to_string bbo in
+  let symbol = symbol_to_display ?directory symbol in
   View.hcat
-    [ View.text ~attrs:[ title_attr ] [%string "%{symbol#Symbol_id}: "]
+    [ View.text ~attrs:[ title_attr ] [%string "%{symbol}: "]
     ; View.text ~attrs:[ bbo_value_attr ] bbo_str
     ]
 ;;
 
-let render_bbo_panel (bbos : (Symbol_id.t * Bbo.t) list) =
+let render_bbo_panel ?directory (bbos : (Symbol_id.t * Bbo.t) list) =
   let label =
     View.text ~attrs:[ dim_grey ] (String.pad_right "BBO:" ~len:12)
   in

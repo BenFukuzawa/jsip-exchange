@@ -54,7 +54,9 @@ end
 
 type t
 
-val create : unit -> t
+(** Create a fresh controller. Pass [?directory] so the event log renders
+    ticker names instead of wire {!Symbol_id.t}s (Exercise 4). *)
+val create : ?directory:Symbol_directory.t -> unit -> t
 
 (** Deliver a new exchange event. The controller appends it to the log; the
     next call to [display] will include it if the current filter admits. *)

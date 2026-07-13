@@ -34,6 +34,13 @@ val submit_order_rpc : (Order.Request.t, unit Or_error.t) Rpc.Rpc.t
     resolves its name via the symbol directory. *)
 val book_query_rpc : (Symbol_id.t, Book.t option) Rpc.Rpc.t
 
+(** Fetch the exchange's symbol directory: the full name<->id mapping the
+    server built from its symbol universe. Clients dispatch this once right
+    after connecting so they can render wire-visible {!Jsip_types.Symbol_id.t}s
+    as human ticker names and resolve typed tickers back to ids on the parse
+    edge. *)
+val symbol_directory_rpc : (unit, (Symbol.t * Symbol_id.t) list) Rpc.Rpc.t
+
 (** Subscribe to market data for one or more symbols. The server pushes BBO
     updates and trade reports as they happen via a single pipe. The query is
     the list of symbols to subscribe to; using one RPC for the whole list

@@ -64,13 +64,21 @@ module Filter : sig
   (** [combine a b] returns a filter that requires both [a] and [b]. *)
   val combine : t -> t -> t
 
-  (** Whether the filter would keep [event]. *)
-  val matches : t -> Exchange_event.t -> bool
+  (** Whether the filter would keep [event]. The substring predicate matches
+      against the event's rendered line, so pass [?directory] to match on
+      ticker names rather than wire ids (Exercise 4). *)
+  val matches
+    :  ?directory:Symbol_directory.t
+    -> t
+    -> Exchange_event.t
+    -> bool
 end
 
 type t
 
-val create : unit -> t
+(** Create an empty log. Pass [?directory] to render events with ticker names;
+    without it, events render with their wire {!Symbol_id.t}s. *)
+val create : ?directory:Symbol_directory.t -> unit -> t
 
 (** Append an event to the log. Also refreshes [current_bbos] when [event] is
     a [Best_bid_offer_update]. *)

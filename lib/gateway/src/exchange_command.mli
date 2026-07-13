@@ -16,4 +16,8 @@ type t =
   | Subscribe of Symbol_id.t
 [@@deriving sexp_of]
 
-val parse : ?default_participant:Participant.t -> string -> t Or_error.t
+val parse
+  :  ?default_participant:Participant.t
+  -> directory:Symbol_directory.t
+  -> string
+  -> t Or_error.t

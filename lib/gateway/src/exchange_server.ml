@@ -102,6 +102,7 @@ let start_stats_loop ~dispatcher ~collector ~stats_subscribers ~stop =
 
 let start ~symbols ~port () =
   let engine = Matching_engine.create symbols in
+  let directory = Symbol_directory.of_symbols symbols in
   let registry = Participant_registry.create () in
   let dispatcher = Dispatcher.create registry in
   let collector = Exchange_stats.Collector.create () in
@@ -157,6 +158,11 @@ let start ~symbols ~port () =
             ignore state;
             Matching_engine.book engine symbol
             |> Option.map ~f:Order_book.snapshot)
+        ; Rpc.Rpc.implement'
+            Rpc_protocol.symbol_directory_rpc
+            (fun state () ->
+               ignore state;
+               Symbol_directory.to_alist directory)
         ; Rpc.Pipe_rpc.implement
             Rpc_protocol.market_data_rpc
             (fun state symbols ->

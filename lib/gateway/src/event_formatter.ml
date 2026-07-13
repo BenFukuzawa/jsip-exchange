@@ -34,12 +34,24 @@ open Jsip_types
    Participant.equal request.participant default_participant then Ok
    [{ request with participant = default }] else Ok request ;; *)
 
-let format_event = function
+(* Render a wire [Symbol_id.t] for display: the id by default, the ticker name
+   when a [directory] is supplied (Exercise 4), falling back to the id when the
+   directory doesn't know it. *)
+let symbol_to_display ?directory symbol =
+  match directory with
+  | None -> Symbol_id.to_string symbol
+  | Some d ->
+    Symbol_directory.name_of_id d symbol
+    |> Option.map ~f:Symbol.to_string
+    |> Option.value ~default:(Symbol_id.to_string symbol)
+;;
+
+let format_event ?directory = function
   | Exchange_event.Order_accept { order_id; request } ->
     sprintf
       "ACCEPTED id=%s %s %s %d@%s %s"
       (Order_id.to_string order_id)
-      (Symbol_id.to_string request.symbol)
+      (symbol_to_display ?directory request.symbol)
       (Side.to_string request.side)
       (Size.to_int request.size)
       (Price.to_string_dollar request.price)
@@ -57,29 +69,31 @@ let format_event = function
       "CANCELLED client_id=%d id=%s %s remaining=%d reason=%s"
       (Client_order_id.to_int client_order_id)
       (Order_id.to_string order_id)
-      (Symbol_id.to_string symbol)
+      (symbol_to_display ?directory symbol)
       (Size.to_int remaining_size)
       (Cancel_reason.to_string reason)
   | Order_reject { request; reason } ->
     sprintf
       "REJECTED %s %s %d@%s reason=%s"
-      (Symbol_id.to_string request.symbol)
+      (symbol_to_display ?directory request.symbol)
       (Side.to_string request.side)
       (Size.to_int request.size)
       (Price.to_string_dollar request.price)
       reason
   | Best_bid_offer_update { symbol; bbo } ->
+    let symbol = symbol_to_display ?directory symbol in
     let bid = Level.opt_to_string bbo.bid in
     let ask = Level.opt_to_string bbo.ask in
-    [%string "BBO %{symbol#Symbol_id} bid=%{bid} ask=%{ask}"]
+    [%string "BBO %{symbol} bid=%{bid} ask=%{ask}"]
   | Trade_report { symbol; price; size } ->
+    let symbol = symbol_to_display ?directory symbol in
     let size = Size.to_int size in
-    [%string "TRADE %{symbol#Symbol_id} %{price#Price} x%{size#Int}"]
+    [%string "TRADE %{symbol} %{price#Price} x%{size#Int}"]
   | Cancel_reject { participant = _; client_order_id; reason } ->
     let client_id = Client_order_id.to_int client_order_id in
     [%string "CANCEL_REJECTED client_id=%{client_id#Int} reason=%{reason}"]
 ;;
 
-let format_events events =
-  List.map events ~f:format_event |> String.concat ~sep:"\n"
+let format_events ?directory events =
+  List.map events ~f:(format_event ?directory) |> String.concat ~sep:"\n"
 ;;

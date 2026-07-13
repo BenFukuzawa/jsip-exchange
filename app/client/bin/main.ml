@@ -17,6 +17,14 @@ let run_client ~host ~port ~participant_name =
     Tcp.Where_to_connect.of_host_and_port { host; port }
   in
   let%bind conn = Rpc.Connection.client where_to_connect >>| Result.ok_exn in
+  (* Fetch the symbol directory once, up front, so every parse and render can
+     speak ticker names instead of raw wire ids. Degrade to an empty directory
+     (names fall back to ids) if the server doesn't answer. *)
+  let%bind directory =
+    match%map Rpc.Rpc.dispatch Rpc_protocol.symbol_directory_rpc conn () with
+    | Ok pairs -> Symbol_directory.of_alist pairs
+    | Error _ -> Symbol_directory.of_alist []
+  in
   print_endline
     [%string
       {|
@@ -40,7 +48,7 @@ market-data feed.|}];
       Pipe.iter pipe ~f:(fun event ->
         match event with
         | Fill fill ->
-          (match Fill.to_participant_view fill participant with
+          (match Fill.to_participant_view ~directory fill participant with
            | None -> Deferred.unit
            | Some s ->
              print_endline s;
@@ -60,7 +68,10 @@ market-data feed.|}];
       then loop ()
       else (
         match
-          Exchange_command.parse ~default_participant:participant line
+          Exchange_command.parse
+            ~default_participant:participant
+            ~directory
+            line
         with
         | Error err ->
           print_endline [%string "ERROR: %{Error.to_string_hum err}"];
@@ -76,8 +87,14 @@ market-data feed.|}];
           in
           (match result with
            | None ->
-             print_endline [%string "No book available for %{symbol#Symbol_id}"]
-           | Some result -> print_endline (Book.to_string result));
+             let name =
+               Symbol_directory.name_of_id directory symbol
+               |> Option.map ~f:Symbol.to_string
+               |> Option.value ~default:(Symbol_id.to_string symbol)
+             in
+             print_endline [%string "No book available for %{name}"]
+           | Some result ->
+             print_endline (Book.to_string ~directory result));
           loop ()
         | Ok (Subscribe symbol) ->
           let%bind result =
@@ -92,17 +109,23 @@ market-data feed.|}];
                [%string "ERROR subscribing: %{Error.to_string_hum err}"];
              loop ()
            | Ok (Ok (reader, _id)) ->
+             let name =
+               Symbol_directory.name_of_id directory symbol
+               |> Option.map ~f:Symbol.to_string
+               |> Option.value ~default:(Symbol_id.to_string symbol)
+             in
              print_endline
                [%string
                  {|
-Subscribed to %{symbol#Symbol_id} market data. Updates will appear below.
+Subscribed to %{name} market data. Updates will appear below.
 Continue entering commands as normal.|}];
              (* Read market data in the background; the command loop
                 continues running concurrently. *)
              don't_wait_for
                (Pipe.iter_without_pushback reader ~f:(fun event ->
                   print_endline
-                    [%string "[MD] %{Event_formatter.format_event event}"]));
+                    [%string
+                      "[MD] %{Event_formatter.format_event ~directory event}"]));
              loop ()))
   in
   loop ()
